@@ -1,0 +1,132 @@
+/* ============================================
+   AcquirerX Frontend — Global Styles
+   ============================================ */
+
+/* Bootstrap 5 is loaded in main.jsx BEFORE this file.
+   Anything written here overrides Bootstrap defaults. */
+
+/* --- Body --- */
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  background-color: #f8f9fa;
+  color: #212529;
+}
+
+/* --- Code blocks --- */
+code {
+  font-family: "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", monospace;
+  font-size: 0.875em;
+  color: #d63384;
+  background-color: rgba(214, 51, 132, 0.08);
+  padding: 0.15rem 0.35rem;
+  border-radius: 0.25rem;
+}
+
+/* --- Card hover effect (subtle) --- */
+.card {
+  transition: box-shadow 0.15s ease-in-out;
+}
+
+/* --- Custom utility: tighter line height for tables --- */
+.table-sm td,
+.table-sm th {
+  padding-top: 0.4rem;
+  padding-bottom: 0.4rem;
+}
+
+/* ============================================
+   AcquirerX Layout — Sidebar & Shell
+   ============================================ */
+
+.ax-app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.ax-content-wrapper {
+  display: flex;
+  flex: 1;
+}
+
+/* Sidebar — fixed panel, slides in from left on mobile */
+.ax-sidebar {
+  width: 240px;
+  position: fixed;
+  top: 60px;
+  left: 0;
+  bottom: 0;
+  z-index: 1045;
+  overflow-y: auto;
+  transform: translateX(-100%);
+  transition: transform 0.25s ease;
+}
+
+/* Always visible on md+ (desktop) */
+@media (min-width: 768px) {
+  .ax-sidebar {
+    transform: translateX(0) !important;
+  }
+}
+
+/* Open state toggled on mobile */
+.ax-sidebar.ax-sidebar--open {
+  transform: translateX(0);
+}
+
+.ax-sidebar .nav-link {
+  font-size: 0.95rem;
+  transition: background-color 0.1s ease-in-out;
+}
+
+.ax-sidebar .nav-link:hover {
+  background-color: #f8f9fa;
+}
+
+/* Main content — pushed right by sidebar width on desktop */
+.ax-main {
+  margin-left: 240px;
+  padding: 24px;
+  width: 100%;
+  min-height: calc(100vh - 60px);
+  background-color: #f8f9fa;
+}
+
+/* On mobile the sidebar overlays content, so no margin needed */
+@media (max-width: 767.98px) {
+  .ax-main {
+    margin-left: 0;
+  }
+}
+
+/* ============================================
+   Global Search
+   ============================================ */
+
+/* Dropdown panel positioned below the input */
+.ax-search-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 480px;
+  overflow-y: auto;
+  z-index: 1050;
+  border-radius: 6px;
+}
+
+/* Ensure navbar doesn't clip the dropdown */
+.navbar {
+  overflow: visible;
+}
+
+/* Keyboard-highlighted row */
+.ax-search-item.bg-primary-subtle {
+  background-color: #e7f1ff !important;
+}
+
+.ax-search-item:hover {
+  background-color: #f8f9fa;
+}

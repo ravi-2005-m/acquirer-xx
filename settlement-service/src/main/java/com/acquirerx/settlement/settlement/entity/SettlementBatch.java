@@ -1,0 +1,48 @@
+package com.acquirerx.settlement.settlement.entity;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Index;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
+import lombok.Data;
+
+import java.time.LocalDateTime;
+
+@Entity
+@Data
+@Table(name = "settlement_batch", indexes = {
+        @Index(name = "idx_settle_merchant", columnList = "merchant_id"),
+        @Index(name = "idx_settle_status", columnList = "status")
+})
+public class SettlementBatch {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long settleBatchId;
+
+    @Column(name = "merchant_id")
+    private Long merchantId;
+
+    private String merchantName;
+
+    private LocalDateTime periodStart;
+    private LocalDateTime periodEnd;
+    private Double grossAmount;
+    private Double totalFees;
+    private Double netAmount;
+    private Integer txnCount;
+    private LocalDateTime postedDate;
+    private String status;
+
+    @PrePersist
+    public void prePersist() {
+        this.postedDate = LocalDateTime.now();
+        if (this.status == null) {
+            this.status = "READY";
+        }
+    }
+}

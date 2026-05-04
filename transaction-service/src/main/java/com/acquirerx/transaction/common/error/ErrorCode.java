@@ -1,0 +1,13 @@
+package com.acquirerx.transaction.common.error;
+
+public enum ErrorCode {
+    VALIDATION_ERROR,
+    BAD_REQUEST,
+    RESOURCE_NOT_FOUND,
+    CONFLICT,
+    IDEMPOTENCY_KEY_REUSED,
+    TERMINAL_UNAVAILABLE,
+    BATCH_STATE_INVALID,
+    TRANSACTION_STATE_INVALID,
+    INTERNAL_SERVER_ERROR
+}

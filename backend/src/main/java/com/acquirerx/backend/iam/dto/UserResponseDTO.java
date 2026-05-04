@@ -1,0 +1,16 @@
+package com.acquirerx.backend.iam.dto;
+
+import lombok.Data;
+
+import java.time.LocalDateTime;
+
+@Data
+public class UserResponseDTO {
+
+    private Long userId;
+    private String username;
+    private String email;
+    private String role;
+    private String status;
+    private LocalDateTime createdAt;
+}

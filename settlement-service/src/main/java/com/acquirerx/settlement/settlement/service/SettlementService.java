@@ -1,0 +1,300 @@
+package com.acquirerx.settlement.settlement.service;
+
+import com.acquirerx.settlement.client.MerchantServiceClient;
+import com.acquirerx.settlement.client.TransactionServiceClient;
+import com.acquirerx.settlement.common.dto.PagedResponseDTO;
+import com.acquirerx.settlement.common.exception.ResourceNotFoundException;
+import com.acquirerx.settlement.common.pagination.PaginationParams;
+import com.acquirerx.settlement.settlement.dto.AdjustmentRequestDTO;
+import com.acquirerx.settlement.settlement.dto.AdjustmentResponseDTO;
+import com.acquirerx.settlement.settlement.dto.PayoutResponseDTO;
+import com.acquirerx.settlement.settlement.dto.SettlementBatchResponseDTO;
+import com.acquirerx.settlement.settlement.dto.SettlementFilterDTO;
+import com.acquirerx.settlement.settlement.dto.SettlementStatsDTO;
+import com.acquirerx.settlement.settlement.dto.SettlementSummaryDTO;
+import com.acquirerx.settlement.settlement.entity.Adjustment;
+import com.acquirerx.settlement.settlement.entity.Payout;
+import com.acquirerx.settlement.settlement.entity.SettlementBatch;
+import com.acquirerx.settlement.settlement.repository.AdjustmentRepository;
+import com.acquirerx.settlement.settlement.repository.PayoutRepository;
+import com.acquirerx.settlement.settlement.repository.SettlementBatchRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class SettlementService {
+
+    private static final Set<String> SETTLEMENT_SORT_FIELDS = Set.of(
+            "settleBatchId", "merchantId", "grossAmount", "netAmount", "txnCount", "status", "postedDate"
+    );
+    private static final Set<String> ADJUSTMENT_SORT_FIELDS = Set.of(
+            "adjustmentId", "merchantId", "amount", "type", "status", "postedDate"
+    );
+
+    private final SettlementBatchRepository settlementBatchRepository;
+    private final PayoutRepository payoutRepository;
+    private final AdjustmentRepository adjustmentRepository;
+    private final TransactionServiceClient transactionClient;
+    private final MerchantServiceClient merchantClient;
+
+    public SettlementBatchResponseDTO settle(Long merchantId) {
+        String merchantName = "Unknown";
+        try {
+            Map<String, Object> merchantResp = merchantClient.getMerchantById(merchantId);
+            Map<String, Object> merchantData = (Map<String, Object>) merchantResp.get("data");
+            if (merchantData != null && merchantData.get("legalName") != null) {
+                merchantName = merchantData.get("legalName").toString();
+            }
+        } catch (Exception e) {
+            log.warn("Could not fetch merchant info: {}", e.getMessage());
+        }
+
+        Map<String, Object> txnResp;
+        try {
+            txnResp = transactionClient.getUnsettledTxns(merchantId);
+        } catch (Exception e) {
+            throw new IllegalStateException(
+                    "Cannot fetch unsettled txns from transaction-service: " + e.getMessage());
+        }
+
+        List<Map<String, Object>> txnList = null;
+        Object dataObj = txnResp.get("data");
+        if (dataObj instanceof List) {
+            txnList = (List<Map<String, Object>>) dataObj;
+        }
+
+        if (txnList == null || txnList.isEmpty()) {
+            throw new IllegalStateException("No unsettled transactions found for merchant: " + merchantId);
+        }
+
+        double grossAmount = 0;
+        double totalFees = 0;
+
+        for (Map<String, Object> txn : txnList) {
+            double amount = txn.get("amount") != null
+                    ? Double.parseDouble(txn.get("amount").toString()) : 0;
+            double fee = txn.get("totalFee") != null
+                    ? Double.parseDouble(txn.get("totalFee").toString()) : 0;
+            grossAmount += amount;
+            totalFees += fee;
+        }
+
+        double netAmount = grossAmount - totalFees;
+
+        SettlementBatch batch = new SettlementBatch();
+        batch.setMerchantId(merchantId);
+        batch.setMerchantName(merchantName);
+        batch.setPeriodStart(LocalDateTime.now().minusDays(1));
+        batch.setPeriodEnd(LocalDateTime.now());
+        batch.setGrossAmount(Math.round(grossAmount * 100.0) / 100.0);
+        batch.setTotalFees(Math.round(totalFees * 100.0) / 100.0);
+        batch.setNetAmount(Math.round(netAmount * 100.0) / 100.0);
+        batch.setTxnCount(txnList.size());
+        batch.setStatus("PAID");
+
+        SettlementBatch saved = settlementBatchRepository.save(batch);
+
+        Payout payout = new Payout();
+        payout.setSettlementBatch(saved);
+        payout.setBankAccountRef("BANK-REF-" + merchantId);
+        payout.setAmount(saved.getNetAmount());
+        payout.setStatus("POSTED");
+        payoutRepository.save(payout);
+
+        try {
+            transactionClient.markTxnsSettled(merchantId);
+            log.info("Marked txns settled for merchant: {}", merchantId);
+        } catch (Exception e) {
+            log.error("Failed to mark txns settled: {}", e.getMessage());
+        }
+
+        log.info("Settlement complete: merchantId={}, gross={}, fees={}, net={}, txnCount={}",
+                merchantId, grossAmount, totalFees, netAmount, txnList.size());
+
+        return toSettlementResponse(saved);
+    }
+
+    public PayoutResponseDTO processPayout(Long settleBatchId) {
+        SettlementBatch batch = settlementBatchRepository.findById(settleBatchId)
+                .orElseThrow(() -> new ResourceNotFoundException("Settlement batch not found: " + settleBatchId));
+
+        payoutRepository.findBySettlementBatch_SettleBatchId(settleBatchId)
+                .ifPresent(p -> {
+                    throw new IllegalStateException("Payout already processed for batch: " + settleBatchId);
+                });
+
+        if ("ON_HOLD".equals(batch.getStatus())) {
+            throw new IllegalStateException("Settlement batch is on hold — cannot process payout");
+        }
+
+        Payout payout = new Payout();
+        payout.setSettlementBatch(batch);
+        payout.setAmount(batch.getNetAmount());
+        payout.setBankAccountRef("BANK-REF-" + batch.getMerchantId());
+        payout.setStatus("POSTED");
+
+        batch.setStatus("PAID");
+        settlementBatchRepository.save(batch);
+
+        Payout saved = payoutRepository.save(payout);
+        return toPayoutResponse(saved);
+    }
+
+    public PagedResponseDTO<SettlementBatchResponseDTO> getAllSettlements(PaginationParams pagination) {
+        pagination.validateSortField(SETTLEMENT_SORT_FIELDS);
+        Pageable pageable = pagination.toPageable();
+        Page<SettlementBatch> batchPage = settlementBatchRepository.findAll(pageable);
+        return new PagedResponseDTO<>(batchPage.map(this::toSettlementResponse));
+    }
+
+    public PagedResponseDTO<SettlementBatchResponseDTO> getSettlementsByMerchant(Long merchantId, PaginationParams pagination) {
+        pagination.validateSortField(SETTLEMENT_SORT_FIELDS);
+        Pageable pageable = pagination.toPageable();
+        Page<SettlementBatch> batchPage = settlementBatchRepository.findByMerchantId(merchantId, pageable);
+        return new PagedResponseDTO<>(batchPage.map(this::toSettlementResponse));
+    }
+
+    public PagedResponseDTO<SettlementBatchResponseDTO> searchSettlements(SettlementFilterDTO filter, PaginationParams pagination) {
+        pagination.validateSortField(SETTLEMENT_SORT_FIELDS);
+        Pageable pageable = pagination.toPageable();
+        Page<SettlementBatch> batchPage = settlementBatchRepository.findByFiltersPaged(
+                filter.getStatus(), filter.getMerchantId(),
+                filter.getMinNetAmount(), filter.getMaxNetAmount(),
+                filter.getFromDate(), filter.getToDate(),
+                filter.getMinTxnCount(), pageable);
+        return new PagedResponseDTO<>(batchPage.map(this::toSettlementResponse));
+    }
+
+    public List<PayoutResponseDTO> getPayoutsBySettlement(Long settleBatchId) {
+        SettlementBatch batch = settlementBatchRepository.findById(settleBatchId)
+                .orElseThrow(() -> new ResourceNotFoundException("Settlement batch not found: " + settleBatchId));
+        return payoutRepository.findBySettlementBatch(batch)
+                .stream()
+                .map(this::toPayoutResponse)
+                .toList();
+    }
+
+    public SettlementSummaryDTO getSettlementSummary(Long merchantId) {
+        String merchantName = "Unknown";
+        try {
+            Map<String, Object> resp = merchantClient.getMerchantById(merchantId);
+            Map<String, Object> data = (Map<String, Object>) resp.get("data");
+            if (data != null && data.get("legalName") != null) {
+                merchantName = data.get("legalName").toString();
+            }
+        } catch (Exception e) {
+            log.warn("Could not fetch merchant name: {}", e.getMessage());
+        }
+
+        int total = settlementBatchRepository.findByMerchantId(merchantId).size();
+        long paid = val(settlementBatchRepository.countByMerchantIdAndStatus(merchantId, "PAID"));
+        long ready = val(settlementBatchRepository.countByMerchantIdAndStatus(merchantId, "READY"));
+        long onHold = val(settlementBatchRepository.countByMerchantIdAndStatus(merchantId, "ON_HOLD"));
+
+        double totalGross = dval(settlementBatchRepository.sumGrossByMerchant(merchantId));
+        double totalFees = dval(settlementBatchRepository.sumFeesByMerchant(merchantId));
+        double totalNet = dval(settlementBatchRepository.sumNetByMerchant(merchantId));
+        double pending = dval(settlementBatchRepository.sumPendingPayoutByMerchant(merchantId));
+        double totalAdj = dval(adjustmentRepository.sumAdjustmentsByMerchant(merchantId));
+
+        return new SettlementSummaryDTO(
+                merchantId, merchantName,
+                total, (int) paid, (int) ready, (int) onHold,
+                round(totalGross), round(totalFees), round(totalNet),
+                round(totalAdj), round(pending)
+        );
+    }
+
+    public AdjustmentResponseDTO createAdjustment(AdjustmentRequestDTO dto) {
+        Adjustment adj = new Adjustment();
+        adj.setMerchantId(dto.getMerchantId());
+        adj.setTxnId(dto.getTxnId());
+        adj.setAmount(dto.getAmount());
+        adj.setReason(dto.getReason());
+        adj.setType(dto.getType());
+
+        Adjustment saved = adjustmentRepository.save(adj);
+        log.info("Adjustment created: merchantId={}, amount={}, type={}",
+                dto.getMerchantId(), dto.getAmount(), dto.getType());
+        return toAdjustmentResponse(saved);
+    }
+
+    public PagedResponseDTO<AdjustmentResponseDTO> getAdjustmentsByMerchant(Long merchantId, PaginationParams pagination) {
+        pagination.validateSortField(ADJUSTMENT_SORT_FIELDS);
+        Pageable pageable = pagination.toPageable();
+        Page<Adjustment> adjPage = adjustmentRepository.findByMerchantId(merchantId, pageable);
+        return new PagedResponseDTO<>(adjPage.map(this::toAdjustmentResponse));
+    }
+
+    private long val(Long v) { return v != null ? v : 0L; }
+    private double dval(Double v) { return v != null ? v : 0.0; }
+    private double round(double v) { return Math.round(v * 100.0) / 100.0; }
+
+    private SettlementBatchResponseDTO toSettlementResponse(SettlementBatch b) {
+        SettlementBatchResponseDTO r = new SettlementBatchResponseDTO();
+        r.setSettleBatchId(b.getSettleBatchId());
+        r.setMerchantId(b.getMerchantId());
+        r.setMerchantName(b.getMerchantName());
+        r.setPeriodStart(b.getPeriodStart());
+        r.setPeriodEnd(b.getPeriodEnd());
+        r.setGrossAmount(b.getGrossAmount());
+        r.setTotalFees(b.getTotalFees());
+        r.setNetAmount(b.getNetAmount());
+        r.setTxnCount(b.getTxnCount());
+        r.setStatus(b.getStatus());
+        r.setPostedDate(b.getPostedDate());
+        return r;
+    }
+
+    private PayoutResponseDTO toPayoutResponse(Payout p) {
+        PayoutResponseDTO r = new PayoutResponseDTO();
+        r.setPayoutId(p.getPayoutId());
+        r.setAmount(p.getAmount());
+        r.setBankAccountRef(p.getBankAccountRef());
+        r.setStatus(p.getStatus());
+        r.setPayoutDate(p.getPayoutDate());
+        if (p.getSettlementBatch() != null) {
+            r.setSettleBatchId(p.getSettlementBatch().getSettleBatchId());
+            r.setMerchantId(p.getSettlementBatch().getMerchantId());
+            r.setMerchantName(p.getSettlementBatch().getMerchantName());
+        }
+        return r;
+    }
+
+    private AdjustmentResponseDTO toAdjustmentResponse(Adjustment a) {
+        AdjustmentResponseDTO r = new AdjustmentResponseDTO();
+        r.setAdjustmentId(a.getAdjustmentId());
+        r.setMerchantId(a.getMerchantId());
+        r.setTxnId(a.getTxnId());
+        r.setAmount(a.getAmount());
+        r.setReason(a.getReason());
+        r.setType(a.getType());
+        r.setStatus(a.getStatus());
+        r.setPostedDate(a.getPostedDate());
+        return r;
+    }
+
+    public SettlementStatsDTO getStats() {
+        long total = settlementBatchRepository.count();
+        long ready = settlementBatchRepository.countByStatus("READY");
+        long paid = settlementBatchRepository.countByStatus("PAID");
+        long onHold = settlementBatchRepository.countByStatus("ON_HOLD");
+        Double gross = settlementBatchRepository.sumGrossAmount();
+        Double net = settlementBatchRepository.sumNetAmount();
+        Double fees = settlementBatchRepository.sumTotalFees();
+        return new SettlementStatsDTO(total, ready, paid, onHold,
+                gross != null ? gross : 0.0,
+                net != null ? net : 0.0,
+                fees != null ? fees : 0.0);
+    }
+}
