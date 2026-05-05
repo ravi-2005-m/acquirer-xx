@@ -1,0 +1,1076 @@
+# AcquirerX — Master Context Document (Complete A-to-Z)
+
+> **Purpose:** Paste this entire document into any new Claude chat to restore full project context instantly. Covers backend, frontend, infrastructure, API contracts, DBs, security, resilience, internal logic, conventions, and current status.
+>
+> **Owner:** Kailash, software trainee at Cognizant (CTS)
+> **Last updated:** May 2026
+> **Status:** Backend ✅ · Frontend ✅ · End-to-end testing 🔄
+
+---
+
+## TABLE OF CONTENTS
+
+1. [Project Identity](#1-project-identity)
+2. [High-Level Architecture](#2-high-level-architecture)
+3. [Service & Port Map](#3-service--port-map)
+4. [API Gateway — Full Config](#4-api-gateway--full-config)
+5. [Authentication & Authorization](#5-authentication--authorization)
+6. [Roles & RBAC](#6-roles--rbac)
+7. [API Contracts (Per Service)](#7-api-contracts-per-service)
+8. [Database Schemas (Per DB)](#8-database-schemas-per-db)
+9. [Internal Service Logic](#9-internal-service-logic)
+10. [Resilience4J — Circuit Breakers](#10-resilience4j--circuit-breakers)
+11. [Frontend Architecture](#11-frontend-architecture)
+12. [Frontend Error Handling](#12-frontend-error-handling)
+13. [Folder Structure](#13-folder-structure)
+14. [Conventions](#14-conventions)
+15. [Current Status & Known Issues](#15-current-status--known-issues)
+16. [Working Style with Claude](#16-working-style-with-claude)
+17. [Past Conversations Worth Searching](#17-past-conversations-worth-searching)
+18. [Quick-Restore Prompt](#18-quick-restore-prompt)
+
+---
+
+## 1. Project Identity
+
+- **Name:** AcquirerX (AX)
+- **Type:** Enterprise Merchant Acquiring & POS Switch System — full backend + frontend
+- **Purpose:** Interview portfolio piece + structured learning vehicle
+- **Stack:** Spring Boot 3.x microservices · Spring Cloud · Spring Security · MySQL · React 18 · Vite · Bootstrap 5
+- **Java version:** 21
+- **Domain coverage:** Full payment lifecycle — merchant onboarding → terminal provisioning → transaction switching → fee calculation → settlement → reconciliation → disputes → reporting → notifications → risk
+
+---
+
+## 2. High-Level Architecture
+
+```
+                  ┌─────────────────────┐
+                  │   React Frontend    │
+                  │  (Vite + Bootstrap) │
+                  │       :5173         │
+                  └──────────┬──────────┘
+                             │
+                  ┌──────────▼──────────┐
+                  │    API Gateway      │ ← JWT validation
+                  │   Spring Cloud      │ ← Rate limiting (Bucket4j)
+                  │       :9090         │ ← CORS, routing
+                  └──────────┬──────────┘
+                             │
+   ┌─────────────────────────┼──────────────────────────────┐
+   │                         │                              │
+   ▼                         ▼                              ▼
+┌──────────────┐   ┌─────────────────┐   ┌─────────────────────┐
+│ auth-service │   │merchant-service │   │  terminal-service   │
+│    :9099     │   │     :9091       │   │       :9092         │
+└──────────────┘   └─────────────────┘   └─────────────────────┘
+
+┌──────────────────┐  ┌──────────────┐  ┌────────────────────┐
+│transaction-svc   │→ │ risk-service │  │ settlement-service │
+│     :9093        │  │    :9094     │  │      :9095         │
+└──────────────────┘  └──────────────┘  └────────────────────┘
+  (Resilience4J circuit breakers on all Feign calls)
+
+┌──────────────────┐   ┌─────────────────────┐
+│   ops-service    │   │   Eureka Server     │
+│ (disputes/recon/ │   │      :8761          │
+│ notifications/   │   │  (service discovery)│
+│  reports)        │   └─────────────────────┘
+│     :9096        │
+└──────────────────┘
+
+All services have their own MySQL database (7 separate schemas).
+```
+
+---
+
+## 3. Service & Port Map
+
+| Service | Port | Eureka name | Database | Purpose |
+|---|---|---|---|---|
+| Eureka | 8761 | — | — | Service discovery |
+| API Gateway | 9090 | api-gateway | — | Single entry point, JWT, rate limiting, CORS |
+| Auth Service | 9099 | AUTH-SERVICE | `acquirerx_auth` | Users, JWT, audit logs, profile (IAM) |
+| Merchant Service | 9091 | MERCHANT-SERVICE | `acquirerx_merchant` | Merchants, stores, KYC, pricing, settlement profiles |
+| Terminal Service | 9092 | TERMINAL-SERVICE | `acquirerx_terminal` | Terminals, parameter profiles, health |
+| Transaction Service | 9093 | TRANSACTION-SERVICE | `acquirerx_transaction` | Switch (auth/void/refund), fee rules, txns, batches, idempotency |
+| Risk Service | 9094 | RISK-SERVICE | `acquirerx_risk` | Risk rules, events, blacklist |
+| Settlement Service | 9095 | SETTLEMENT-SERVICE | `acquirerx_settlement` | Settlement batches, payouts, adjustments |
+| Ops Service | 9096 | OPS-SERVICE | `acquirerx_ops` | Disputes, reconciliation, notifications, reports/analytics |
+| Frontend | 5173 | — | — | React UI (Vite dev server) |
+| MySQL | 3306 | — | — | All databases |
+
+**System notes:**
+- MySQL root password: `kail3114`
+- Port 8080 is unavailable on the system (do not assign)
+- The `backend/` folder is the original monolith — **ignore it entirely**, only the microservices stack is active
+
+---
+
+## 4. API Gateway — Full Config
+
+### 4.1 Routes (in evaluation order)
+
+```
+[0] /api/v1/auth/**                                   → AUTH-SERVICE
+[1] /api/v1/stores/*/terminals, /api/v1/stores/*/terminals/**  → TERMINAL-SERVICE
+[2] /api/v1/merchants/**, /api/v1/stores/**           → MERCHANT-SERVICE
+[3] /api/v1/terminals/**                              → TERMINAL-SERVICE
+[4] /api/v1/transactions/**, /api/v1/txns/**, /api/v1/fee-rules/**  → TRANSACTION-SERVICE
+[5] /api/v1/risk/**                                   → RISK-SERVICE
+[6] /api/v1/settlement/**, /api/v1/payout/**          → SETTLEMENT-SERVICE
+[7] /api/v1/disputes/**, /api/v1/recon/**, /api/v1/reports/**, /api/v1/notifications/**  → OPS-SERVICE
+[8] /api/v1/iam/**                                    → AUTH-SERVICE
+```
+
+> Route ordering matters — `/api/v1/stores/*/terminals` must come BEFORE `/api/v1/stores/**` so terminal sub-paths hit terminal-service, not merchant-service.
+
+### 4.2 JWT config (gateway + auth-service must match)
+
+- **Secret:** `YourSuperSecretKeyForJWTTokenGenerationMustBeAtLeast256BitsLong2024AcquirerX`
+- **Expiration:** `86400000 ms` (24 hours)
+- **Algorithm:** HS256
+
+### 4.3 Open paths (skip JWT validation)
+
+```
+/api/v1/auth/login
+/api/v1/auth/register
+/api/v1/auth/validate
+/actuator
+/eureka
+/v3/api-docs
+/swagger-ui
+/api/v1/cors-check
+OPTIONS
+```
+
+### 4.4 Rate limit tiers
+
+| Tier | Capacity | Refill | Period |
+|---|---|---|---|
+| strict | 5 | 5 | 60s |
+| standard | 60 | 60 | 60s |
+| generous | 300 | 300 | 60s |
+| lenient | 120 | 120 | 60s |
+
+### 4.5 Path → tier mapping
+
+| Path | Tier |
+|---|---|
+| `/api/v1/auth/login` | strict |
+| `/api/v1/auth/register` | strict |
+| `/api/v1/switch/authorize` | generous |
+| `/api/v1/txns/from-auth/**` | generous |
+| `/actuator/**` | lenient |
+| `/swagger-ui/**` | lenient |
+| `/v3/api-docs/**` | lenient |
+| Everything else | standard |
+
+### 4.6 CORS
+
+- **Allowed origins:** `http://localhost:3000`, `http://localhost:4200`, `http://localhost:5173`, `http://localhost:8080`
+- **Allowed methods:** GET, POST, PUT, PATCH, DELETE, OPTIONS
+- **Allowed headers:** `*`
+- **Exposed headers:** `Idempotent-Replayed`, `X-Trace-Id`, `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Tier`, `Retry-After`, `Location`
+- **Allow credentials:** true
+- **Max-age:** 3600
+
+### 4.7 Actuator
+
+- Exposed: `health`, `info`, `gateway`
+- Liveness probe: `livenessState`, `ping`
+- Readiness probe: `readinessState`, `diskSpace`
+- Show details: `always`
+
+### 4.8 Gateway internal classes
+
+```
+api-gateway/security/
+├── JwtAuthenticationFilter.java
+└── JwtUtil.java
+
+api-gateway/ratelimit/
+├── BucketService.java         (Bucket4j wrapper)
+├── ClientIdentifier.java      (extracts client identity for rate limiting)
+├── RateLimitFilter.java       (gateway filter)
+├── RateLimitProperties.java   (binds rate-limit.* config)
+└── TierResolver.java          (path → tier mapping)
+
+api-gateway/controller/
+└── CorsCheckController.java   (/api/v1/cors-check endpoint)
+```
+
+---
+
+## 5. Authentication & Authorization
+
+### 5.1 Auth flow
+
+1. `POST /auth/register` → BCrypt-hashes password, creates user
+2. `POST /auth/login` → returns JWT
+3. JWT used in `Authorization: Bearer <token>` on all subsequent calls
+4. Gateway validates JWT before routing (centralized — Phase E)
+5. `GET /auth/validate` exposed for gateway/service token verification
+
+### 5.2 JWT payload structure
+
+- **Subject** = username
+- **Custom claim:** `role`
+- **IssuedAt + Expiration** timestamps
+- **Algorithm:** HS256
+- **No userId in token** — services use username for identity
+
+### 5.3 JwtUtil.java methods (auth-service)
+
+```
+generateToken(username, role)  → returns signed JWT
+extractUsername(token)         → from subject claim
+extractRole(token)             → from "role" custom claim
+isValid(token)                 → validates signature + parses claims
+```
+
+### 5.4 Frontend auth state
+
+- localStorage key: `ax_token`
+- On 401 response: token cleared, `returnTo` saved in sessionStorage as `returnTo` (path + query), redirect to `/login`
+- Axios request interceptor adds `Authorization: Bearer <token>` to every request
+- `axiosConfig.js` baseURL: `import.meta.env.VITE_API_BASE_URL` (= `http://localhost:9090/api/v1`)
+
+---
+
+## 6. Roles & RBAC
+
+### 6.1 Roles (5 — these are the only ones)
+
+`ADMIN`, `RISK`, `DISPUTES`, `RECON`, `MERCHANT_OPS`
+
+### 6.2 Frontend role gating
+
+- `RoleRoute.jsx` — restricts pages by role
+- Conditional rendering of action buttons
+- `roles.js` utility for role-check helpers
+- `/forbidden` page for unauthorized access attempts
+
+---
+
+## 7. API Contracts (Per Service)
+
+> All paths below are **after** the `http://localhost:9090/api/v1` prefix.
+
+### 7.1 Auth Service (port 9099)
+
+**Auth & user management** (`/auth/*`)
+- `POST /auth/register` — body: `{ username, password, role, email }`
+- `POST /auth/login` — body: `{ username, password }` → returns `{ token, username, role, message }`
+- `GET /auth/validate` — header `Authorization: Bearer <token>` → returns user info
+- `GET /auth/users` — pagination
+- `GET /auth/users/{id}`
+- `POST /auth/users/search` — body: `UserFilterDTO { username, role, status, email }`
+- `PATCH /auth/users/{id}/role?role=<NEW_ROLE>`
+- `PATCH /auth/users/{id}/deactivate`
+- `PATCH /auth/users/{id}/reactivate`
+
+**Audit** (`/auth/audit/*`)
+- `GET /auth/audit` — pagination
+- `POST /auth/audit/search` — body: `AuditFilterDTO { actorUsername, action, targetId, fromDate, toDate }`
+- `GET /auth/audit/actor/{username}`
+
+**Profile / IAM** (`/iam/*`)
+- `GET /iam/me` — current user info
+- `PATCH /iam/me` — update profile
+- `POST /iam/me/change-password` — body: `{ currentPassword, newPassword }`
+- `GET /iam/me/preferences`
+- `PATCH /iam/me/preferences`
+- `GET /iam/me/login-history`
+
+### 7.2 Merchant Service (port 9091)
+
+**Merchants** (`/merchants/*`)
+- `GET /merchants` — pagination
+- `GET /merchants/{id}`
+- `POST /merchants` — body: `{ legalName, doingBusinessAs, mcc, contactInfo, riskLevel }`
+- `PUT /merchants/{id}`
+- `DELETE /merchants/{id}`
+- `POST /merchants/search` — body: `MerchantFilterDTO { legalName, mcc, status, riskLevel, contactInfo }`
+- `PATCH /merchants/{id}/status?newStatus=ACTIVE|INACTIVE|PENDING`
+- `GET /merchants/status/{status}` — pagination
+- `GET /merchants/stats`
+
+**Onboarding — KYC** (`/merchants/onboarding/kyc/*`)
+- `POST /merchants/onboarding/kyc` — body: `{ merchantId, documentType, documentRef, notes }`
+- `PATCH /merchants/onboarding/kyc/{kycId}/verify`
+- `PATCH /merchants/onboarding/kyc/{kycId}/reject?reason=...`
+- `GET /merchants/onboarding/kyc/pending`
+- `GET /merchants/onboarding/kyc/merchant/{merchantId}`
+
+**Onboarding — Pricing** (`/merchants/onboarding/pricing/*`)
+- `POST /merchants/onboarding/pricing` — body: `{ merchantId, modelType, mdrPct, perTxnFee, schemeFeePassThrough, effectiveFrom, effectiveTo }`
+- `PATCH /merchants/onboarding/pricing/{pricingId}/deactivate`
+- `GET /merchants/onboarding/pricing/active`
+- `GET /merchants/onboarding/pricing/merchant/{merchantId}`
+
+**Onboarding — Settlement Profile** (`/merchants/onboarding/settlement-profile/*`)
+- `POST /merchants/onboarding/settlement-profile` — body: `{ merchantId, settlementCycle, bankAccountRef, reservePct }`
+- `PUT /merchants/onboarding/settlement-profile/{profileId}`
+- `PATCH /merchants/onboarding/settlement-profile/{profileId}/deactivate`
+- `GET /merchants/onboarding/settlement-profile/merchant/{merchantId}`
+
+**Stores** (`/stores/*` and `/merchants/{merchantId}/stores`)
+- `GET /stores` — pagination + sortBy
+- `GET /stores/{id}`
+- `POST /merchants/{merchantId}/stores` — body: `{ storeName, address, region }`
+- `PUT /stores/{id}`
+- `DELETE /stores/{id}`
+- `POST /stores/search` — body: `StoreFilterDTO { storeName, region, address, status, merchantId }`
+- `GET /merchants/{merchantId}/stores`
+- `PATCH /stores/{id}/status?newStatus=ACTIVE|INACTIVE|PENDING`
+- `GET /stores/stats`
+
+### 7.3 Terminal Service (port 9092)
+
+**Terminals** (`/terminals/*` and `/stores/{storeId}/terminals`)
+- `GET /terminals` — pagination
+- `GET /terminals/{id}`
+- `POST /stores/{storeId}/terminals` — body: `{ tid, brandModel, capability }` (capability: `MAGSTRIPE`, etc.)
+- `PUT /terminals/{id}`
+- `DELETE /terminals/{id}`
+- `POST /terminals/search` — body: `TerminalFilterDTO { tid, brandModel, capability, status, storeId, merchantId }`
+- `GET /stores/{storeId}/terminals`
+- `PATCH /terminals/{id}/status?newStatus=ACTIVE|INACTIVE|PENDING`
+- `GET /terminals/stats`
+
+**Provisioning — Profiles** (`/terminals/provisioning/profiles/*`)
+- `GET /terminals/provisioning/profiles`
+- `GET /terminals/provisioning/profiles/active`
+- `POST /terminals/provisioning/profiles` — body: `{ name, paramsJson }`
+- `PUT /terminals/provisioning/profiles/{profileId}`
+- `PATCH /terminals/provisioning/profiles/{profileId}/deactivate`
+- `POST /terminals/provisioning/profiles/{profileId}/assign/{terminalId}`
+
+**Provisioning — Health** (`/terminals/provisioning/health/*`)
+- `GET /terminals/provisioning/health`
+- `GET /terminals/provisioning/health/{terminalId}`
+- `POST /terminals/provisioning/health/{terminalId}?batteryPct=&signalStrength=&firmwareVersion=&ipAddress=`
+- `GET /terminals/provisioning/health/status/{status}`
+- `GET /terminals/provisioning/health/stale`
+- `GET /terminals/provisioning/health/low-battery`
+
+### 7.4 Transaction Service (port 9093)
+
+**Switch operations** (`/transactions/*`) — supports `Idempotency-Key` header
+- `POST /transactions/authorize` — body: `{ terminalId, amount, currency, panMasked, txnType }`
+- `POST /transactions/void` — body: `{ originalAuthId, terminalId }`
+- `POST /transactions/refund` — body: `{ originalAuthId, terminalId, amount, currency }`
+- `GET /transactions` — pagination
+- `POST /transactions/search` — body: `TransactionFilterDTO { status, txnType, minAmount, maxAmount, fromDate, toDate, merchantId, terminalId, network }`
+- `POST /transactions/stats` — same filter body
+- `POST /transactions/batch/{terminalId}/open`
+- `POST /transactions/batch/{terminalId}/close`
+- `GET /transactions/batch/{terminalId}`
+
+**Fee txns** (`/txns/*`) — supports `Idempotency-Key` header
+- `POST /txns/from-auth/{authId}` — creates a Txn from an authorized AuthMessage
+- `GET /txns` — pagination
+- `GET /txns/{txnId}`
+- `GET /txns/all`
+- `GET /txns/stats`
+- `GET /txns/merchant/{merchantId}` — pagination
+- `GET /txns/merchant/{merchantId}/unsettled`
+- `PUT /txns/merchant/{merchantId}/mark-settled`
+- `POST /txns/search` — body: `TxnFilterDTO { status, settled, minAmount, maxAmount, fromDate, toDate, merchantId, terminalId, currency }`
+- `GET /merchants/{merchantId}/fee-summary`
+
+**Fee rules** (`/fee-rules/*`)
+- `GET /fee-rules`
+- `GET /fee-rules/active`
+- `POST /fee-rules` — body: `{ cardType, transactionType, schemePercentage, interchangePercentage, acquirerMarkupPercentage, mccPattern, region, minAmount, maxAmount, network, priority, effectiveFrom, effectiveTo }`
+- `PUT /fee-rules/{feeRuleId}`
+
+### 7.5 Risk Service (port 9094)
+
+- `GET /risk/rules` — pagination
+- `POST /risk/rules` — body: `{ name, expression, maxAmount, severity, action }` (severity: CRITICAL/HIGH/MEDIUM/LOW; action: ALLOW/REVIEW/BLOCK)
+- `PATCH /risk/rules/{id}/deactivate`
+- `GET /risk/events` — pagination
+- `POST /risk/events/search` — body: `RiskEventFilterDTO { result, minScore, maxScore, fromDate, toDate, txnId, ruleId }`
+- `GET /risk/blacklist?type=...` — pagination (type: PAN/TERMINAL/MERCHANT)
+- `POST /risk/blacklist` — body: `{ type, value, reason }`
+- `DELETE /risk/blacklist/{id}`
+- `POST /risk/check?amount=&panMasked=&tid=` — manual risk check
+- `GET /risk/summary`
+
+### 7.6 Settlement Service (port 9095)
+
+**Settlement** (`/settlement/*`)
+- `GET /settlement` — pagination
+- `POST /settlement/search` — body: `SettlementFilterDTO { status, merchantId, minNetAmount, maxNetAmount, fromDate, toDate, minTxnCount }`
+- `POST /settlement/merchant/{merchantId}` — run settlement for merchant
+- `GET /settlement/merchant/{merchantId}` — pagination
+- `POST /settlement/payout/{settleBatchId}` — create payout
+- `GET /settlement/{settleBatchId}/payouts`
+- `POST /settlement/adjustments` — body: `{ merchantId, txnId, amount, reason, type }`
+- `GET /settlement/adjustments/merchant/{merchantId}` — pagination
+- `GET /settlement/summary/merchant/{merchantId}`
+- `GET /settlement/stats`
+
+**Payout** (`/payout/*`)
+- `POST /payout/{settlementId}`
+- `POST /payout/async/{settlementId}`
+
+### 7.7 Ops Service (port 9096)
+
+**Disputes** (`/disputes/*`)
+- `GET /disputes` — pagination
+- `POST /disputes` — body: `{ txnId, panMasked, reasonCode }`
+- `POST /disputes/search` — body: `DisputeFilterDTO { stage, status, reasonCode, fromDate, toDate, merchantId, deadlineExpired }`
+- `POST /disputes/summary` — same filter body
+- `GET /disputes/open` — pagination
+- `GET /disputes/stage/{stage}` — pagination (stage: RETRIEVAL/CHARGEBACK/REPRESENTMENT/ARBITRATION)
+- `GET /disputes/stats`
+- `PATCH /disputes/{id}/advance` — advance stage
+- `PATCH /disputes/{id}/close`
+- `POST /disputes/documents` — body: `{ caseId, docType, uri }` (docType: INVOICE, etc.)
+- `GET /disputes/{id}/documents`
+- `POST /disputes/actions` — body: `{ caseId, actionType, actorId, notes }` (actionType: REJECT, etc.)
+- `GET /disputes/{id}/actions`
+
+**Reconciliation** (`/recon/*`)
+- `POST /recon/load` — body: `{ source: SWITCH|NETWORK|BANK, fileDate, items: [{ reference, amount }] }`
+- `GET /recon/files` — pagination
+- `POST /recon/files/search` — body: `ReconFilterDTO`
+- `GET /recon/files/{id}/items` — pagination
+- `POST /recon/items/search`
+- `GET /recon/exceptions` — pagination
+- `GET /recon/exceptions/open`
+- `POST /recon/exceptions/search`
+- `PATCH /recon/exceptions/{id}/resolve` — body: `{ status: WRITTEN_OFF|RESOLVED|..., notes }`
+- `GET /recon/summary`
+- `GET /recon/stats`
+
+**Notifications** (`/notifications/*`)
+- `GET /notifications`
+- `POST /notifications/send?userId=&message=&category=`
+- `POST /notifications/search` — body: `NotificationFilterDTO { userId, category, status, fromDate, toDate, messageContains }`
+- `GET /notifications/user/{userId}` — pagination
+- `GET /notifications/user/{userId}/unread`
+- `GET /notifications/user/{userId}/unread-count`
+- `PATCH /notifications/{id}/read`
+- `PATCH /notifications/{id}/dismiss`
+- `PATCH /notifications/user/{userId}/read-all`
+- `GET /notifications/stats`
+
+**Reports / Analytics** (`/reports/*`)
+- `GET /reports` — pagination
+- `POST /reports/search` — body: `ReportFilterDTO { scope, scopeRefId, fromDate, toDate, minChargebackRate, maxChargebackRate }`
+- `GET /reports/scope/{scope}` — pagination
+- `GET /reports/merchant/{merchantId}` — pagination
+- `POST /reports/merchant/{merchantId}` — generate merchant report
+- `POST /reports/network` — generate network report
+- `GET /reports/stats`
+- `GET /reports/transaction-volume`
+- `GET /reports/top-merchants`
+- `GET /reports/settlement-summary`
+- `GET /reports/risk-summary`
+- `GET /reports/dispute-summary`
+- `GET /reports/dashboard-summary`
+
+---
+
+## 8. Database Schemas (Per DB)
+
+### 8.1 `acquirerx_auth`
+- `app_user` (id, username, password_hash, email, role, status, created_at, updated_at, last_login_at)
+- `audit_log` (audit_id, actor_username, action, target_type, target_id, details, performed_at)
+
+### 8.2 `acquirerx_merchant`
+- `merchant` (merchant_id, legal_name, doing_business_as, mcc, contact_info, risk_level, status, created_at)
+- `store` (store_id, store_name, address, region, status, merchant_id, created_at)
+- `merchant_kyc` (kyc_id, merchant_id, document_type, document_ref, verified_date, status, notes, submitted_at)
+- `pricing_model` (pricing_id, merchant_id, model_type, mdr_pct, per_txn_fee, scheme_fee_pass_through, effective_from, effective_to, status, created_at)
+- `settlement_profile` (settle_profile_id, merchant_id, settlement_cycle, bank_account_ref, reserve_pct, status, created_at, updated_at)
+
+### 8.3 `acquirerx_terminal`
+- `terminal` (terminal_id, tid, brand_model, capability, status, store_id, merchant_id, param_profile_id, created_at)
+- `param_profile` (param_profile_id, name, params_json, version, status, created_at, updated_at)
+- `terminal_health` (health_id, terminal_id, last_seen, battery_pct, signal_strength, status, firmware_version, ip_address, updated_at)
+
+### 8.4 `acquirerx_transaction`
+- `auth_message` (auth_id, txn_type, amount, currency, auth_code, response_code, network, status, pan_masked, txn_time, risk_score, risk_reason, original_auth_id, terminal_id, merchant_id, merchant_name, tid, merchant_mcc, merchant_region)
+- `batch` (batch_id, status, open_time, close_time, terminal_id, merchant_id)
+- `txn` (txn_id, amount, currency, scheme_fee, interchange_fee, acquirer_markup, total_fee, net_merchant_amount, status, settled, txn_date, auth_id, merchant_id, store_id, terminal_id, merchant_name, tid)
+- `fee_rule` (fee_rule_id, card_type, transaction_type, scheme_percentage, interchange_percentage, acquirer_markup_percentage, mcc_pattern, region, min_amount, max_amount, network, priority, effective_from, effective_to, status, created_at, updated_at)
+- `idempotency_record` (key, response, created_at, expires_at)
+
+### 8.5 `acquirerx_risk`
+- `risk_event` (risk_event_id, txn_id, txn_amount, rule_id, score, result, event_date)
+- `risk_rule` (risk_rule_id, name, expression, max_amount, severity, action, active)
+- `blacklist` (blacklist_id, type, value, reason, active, created_at)
+
+### 8.6 `acquirerx_settlement`
+- `settlement_batch` (settle_batch_id, merchant_id, gross_amount, total_fees, net_amount, txn_count, status, period_start, period_end, posted_date)
+- `payout` (payout_id, settle_batch_id, merchant_id, amount, bank_account_ref, status, payout_date)
+- `adjustment` (adjustment_id, merchant_id, txn_id, amount, reason, type, status, posted_date)
+
+### 8.7 `acquirerx_ops`
+- `dispute_case` (case_id, stage, status, reason_code, opened_date, closed_date, deadline, txn_id, txn_amount, merchant_name, pan_masked)
+- `dispute_action` (action_id, case_id, action_type, actor_id, notes, action_date)
+- `dispute_document` (doc_id, case_id, doc_type, uri, uploaded_date)
+- `recon_file` (recon_file_id, source, file_date, row_count, status, loaded_at)
+- `recon_item` (recon_item_id, reference, amount, match_status, notes, recon_file_id)
+- `exception_case` (exception_id, reference_id, category, status, notes, created_at)
+- `notification` (notification_id, user_id, message, category, status, created_at)
+
+### 8.8 Quick health-check SQL
+
+```sql
+SELECT 'app_user' AS tbl, COUNT(*) FROM acquirerx_auth.app_user
+UNION ALL SELECT 'audit_log',          COUNT(*) FROM acquirerx_auth.audit_log
+UNION ALL SELECT 'merchant',           COUNT(*) FROM acquirerx_merchant.merchant
+UNION ALL SELECT 'store',              COUNT(*) FROM acquirerx_merchant.store
+UNION ALL SELECT 'merchant_kyc',       COUNT(*) FROM acquirerx_merchant.merchant_kyc
+UNION ALL SELECT 'pricing_model',      COUNT(*) FROM acquirerx_merchant.pricing_model
+UNION ALL SELECT 'settlement_profile', COUNT(*) FROM acquirerx_merchant.settlement_profile
+UNION ALL SELECT 'terminal',           COUNT(*) FROM acquirerx_terminal.terminal
+UNION ALL SELECT 'param_profile',      COUNT(*) FROM acquirerx_terminal.param_profile
+UNION ALL SELECT 'terminal_health',    COUNT(*) FROM acquirerx_terminal.terminal_health
+UNION ALL SELECT 'auth_message',       COUNT(*) FROM acquirerx_transaction.auth_message
+UNION ALL SELECT 'batch',              COUNT(*) FROM acquirerx_transaction.batch
+UNION ALL SELECT 'txn',                COUNT(*) FROM acquirerx_transaction.txn
+UNION ALL SELECT 'fee_rule',           COUNT(*) FROM acquirerx_transaction.fee_rule
+UNION ALL SELECT 'risk_event',         COUNT(*) FROM acquirerx_risk.risk_event
+UNION ALL SELECT 'risk_rule',          COUNT(*) FROM acquirerx_risk.risk_rule
+UNION ALL SELECT 'blacklist',          COUNT(*) FROM acquirerx_risk.blacklist
+UNION ALL SELECT 'settlement_batch',   COUNT(*) FROM acquirerx_settlement.settlement_batch
+UNION ALL SELECT 'payout',             COUNT(*) FROM acquirerx_settlement.payout
+UNION ALL SELECT 'adjustment',         COUNT(*) FROM acquirerx_settlement.adjustment
+UNION ALL SELECT 'dispute_case',       COUNT(*) FROM acquirerx_ops.dispute_case
+UNION ALL SELECT 'recon_file',         COUNT(*) FROM acquirerx_ops.recon_file
+UNION ALL SELECT 'recon_item',         COUNT(*) FROM acquirerx_ops.recon_item
+UNION ALL SELECT 'exception_case',     COUNT(*) FROM acquirerx_ops.exception_case
+UNION ALL SELECT 'notification',       COUNT(*) FROM acquirerx_ops.notification;
+```
+
+---
+
+## 9. Internal Service Logic
+
+### 9.1 Switch flow (transaction-service `SwitchService.java`)
+
+**Authorize:**
+1. Get terminal info via Feign (TerminalServiceClient)
+2. Enrich merchant context (MCC, region) via Feign (MerchantServiceClient) — graceful degradation if merchant service down
+3. Verify open batch exists for terminal — else throws "No open batch"
+4. Call risk-service via Feign (`/risk/check?amount=&panMasked=&tid=`) — defaults to ALLOW if risk service down
+5. Build AuthMessage with: terminal info, merchant info, masked PAN (via `MaskingUtil.maskPan`), network = `LOCALSIM` (hard-coded)
+6. Authorization decision:
+   - If risk = `BLOCK` → status DECLINED, responseCode `05`
+   - Else if amount ≤ ₹50,000 → status APPROVED, authCode `A<timestamp>`, responseCode `00` (REVIEW logs warning but still approves)
+   - Else → status DECLINED, responseCode `51` (limit exceeded)
+7. Save AuthMessage
+
+**Void:**
+- Original must be APPROVED + SALE
+- Open batch required
+- Original status set to REVERSED
+- New AuthMessage created with txnType=VOID, authCode `V<timestamp>`, responseCode `00`
+
+**Refund:**
+- Original must be APPROVED
+- Refund amount cannot exceed original
+- Open batch required
+- New AuthMessage created with txnType=REFUND, authCode `R<timestamp>`, responseCode `00`
+
+**Networks:** All transactions use `LOCALSIM` network (no real Visa/MC/UnionPay routing)
+
+### 9.2 Fee calculation (transaction-service `FeeService.java` + `FeeRuleMatcher.java`)
+
+**Components:** `schemeFee`, `interchangeFee`, `acquirerMarkup` → sum = `totalFee` → `netMerchantAmount = amount - totalFee`
+
+**Rule matching (FeeRuleMatcher):**
+- Rule must be `ACTIVE`
+- Within effective date window (`effectiveFrom` ≤ now ≤ `effectiveTo`)
+- MCC pattern: trailing wildcard supported (e.g., `54*` matches `5411`, `5499`); else exact match
+- Region: case-insensitive exact match
+- Amount: between minAmount and maxAmount inclusive
+- Network: case-insensitive exact match
+- Null criteria = no constraint
+- All AND-combined
+
+**Calculation:**
+- BigDecimal with HALF_UP rounding, 4 decimal places
+- All matching rules' percentages summed per component
+- Rules sorted by `priority` ASC
+- If no rules match → all fees zero (`FeeBreakdownDTO.empty`)
+
+**`createTxnFromAuth(authId)` flow:**
+- Auth must be APPROVED — else `IllegalStateException`
+- Enrich merchant MCC/region if missing on auth
+- Calculate fees → create Txn with `settled=false`
+
+**Settlement support methods:**
+- `getUnsettledTxns(merchantId)` — used by settlement-service
+- `markTxnsSettled(merchantId)` — used by settlement-service
+
+### 9.3 Risk decisioning (risk-service `RiskService.java`)
+
+**`checkRisk(amount, panMasked, tid)` flow:**
+1. **Terminal blacklist check** — if TID in active blacklist → `BLOCK, score=100, "Terminal is blacklisted"`
+2. **PAN blacklist check** — normalize PAN via `MaskingUtil.maskPan`, if in blacklist → `BLOCK, score=100, "Card is blacklisted"`
+3. **Active rules loop** — for each active rule, if `amount > rule.maxAmount`:
+   - Calculate score: `min((amount / maxAmount) * 50, 100)`
+   - If rule's action is more severe than current worst → escalate
+4. Severity ranking: BLOCK (3) > REVIEW (2) > ALLOW (1)
+5. Reason format: `"Rule triggered: <name> (amount <X> exceeds limit <Y>)"`
+
+**Important:** The `expression` field on `risk_rule` is **stored but NOT actually evaluated** — it's metadata only. Real logic uses `maxAmount` field comparison.
+
+**`evaluateAndSave(txnId, amount)` — called after transaction:**
+- For each rule that triggered (amount > maxAmount), saves a RiskEvent
+
+**Blacklist normalization:** PAN values are normalized via `MaskingUtil.maskPan()` before storing or matching
+
+### 9.4 Settlement scheduler (`SettlementScheduler.java`)
+
+- **Cron:** `0 0 1 * * *` — runs daily at 1:00 AM
+- **Flow:**
+  1. Fetch all active merchants via Feign (page size 1000)
+  2. Loop each merchant, call `settlementService.settle(merchantId)`
+  3. Track counters: success / skipped (`IllegalStateException` = no unsettled txns) / failed (other exceptions)
+- `runManualSettlement()` exists for ad-hoc triggering
+
+### 9.5 Idempotency
+
+- **Header:** `Idempotency-Key`
+- **Supported endpoints:** `/transactions/authorize`, `/transactions/void`, `/transactions/refund`, `/txns/from-auth/{authId}`
+- **Storage:** `acquirerx_transaction.idempotency_record` (key, response, created_at, expires_at)
+- **Cleanup:** `IdempotencyCleanupScheduler.java` — scheduled job removes expired records
+
+### 9.6 PAN masking
+
+- All PANs stored masked (e.g., `699006X*X*4178`)
+- `PanMaskingConverter` (JPA AttributeConverter) in transaction-service
+- `MaskingUtil.maskPan()` utility — used in transaction-service AND risk-service
+- Logging: `PanMaskingConverter` logger filter masks PAN in log output
+
+### 9.7 Audit logging (auth-service `AuditService.java`)
+
+- **Method:** `logAction(actorUsername, action, targetType, targetId, details)`
+- **Storage:** `acquirerx_auth.audit_log`
+- **Sortable fields:** auditId, actorUsername, action, targetId, performedAt
+- **Filter:** by actorUsername, action, targetId, fromDate, toDate
+
+---
+
+## 10. Resilience4J — Circuit Breakers
+
+### 10.1 Feign clients with fallbacks
+
+| Service | Calls (Feign clients) |
+|---|---|
+| transaction-service | MerchantServiceClient, RiskServiceClient, TerminalServiceClient |
+| terminal-service | MerchantServiceClient |
+| settlement-service | MerchantServiceClient, TransactionServiceClient |
+| ops-service | MerchantServiceClient, TransactionServiceClient |
+
+Every Feign client has a corresponding `<Name>ClientFallback` class returning safe defaults.
+
+### 10.2 Circuit breaker config
+
+- Sliding window size: 10
+- Failure rate threshold: 50%
+- Wait duration in open state: 30s
+- Permitted calls in half-open: 3
+- Minimum calls before evaluation: 5
+- Auto-transition open → half-open: enabled
+- Timeout per call: 3s
+
+### 10.3 Fallback behavior examples
+
+- **RiskServiceClientFallback** → returns ALLOW (graceful degradation — transactions continue if risk service is down)
+- **TerminalServiceClientFallback** → throws (transactions cannot proceed without terminal info)
+- **MerchantServiceClientFallback** → safe defaults / throws depending on context
+
+---
+
+## 11. Frontend Architecture
+
+### 11.1 Tech stack
+
+- React 18, React Router v6, Bootstrap 5, Bootstrap Icons
+- Axios with interceptors
+- React Hook Form + Zod (for forms with schemas)
+- Recharts (Reports module)
+- PapaParse (Reconciliation CSV upload)
+- React-Query patterns
+- Vite (dev server on port 5173)
+- ESLint
+
+### 11.2 Env
+
+```
+VITE_API_BASE_URL=http://localhost:9090/api/v1
+VITE_APP_NAME=AcquirerX
+```
+
+### 11.3 API modules (14)
+
+`authApi`, `merchantApi`, `storeApi`, `terminalApi`, `transactionApi`, `riskApi`, `settlementApi`, `disputeApi`, `reconApi`, `notificationApi`, `profileApi`, `globalSearchApi`, `statsApi`, `healthApi` — plus shared `axiosConfig.js`
+
+### 11.4 Contexts
+
+- `AuthContext.jsx` — JWT state, login/logout
+- `NotificationContext.jsx` — bell icon unread count, 30s polling
+
+### 11.5 Custom hooks
+
+- `useDebounce.js`
+- `useClickOutside.js`
+
+### 11.6 Zod schemas (3 files)
+
+- `common.js`, `authSchemas.js`, `merchantSchemas.js` — Zod is fully implemented for auth + merchant; other forms use plain RHF
+
+### 11.7 Utils
+
+- `formatters.js` — currency, date, number formatting
+- `jwt.js` — decode JWT to read claims client-side
+- `roles.js` — role-check helpers
+- `toast.js` — toast wrapper
+- `errorMapper.js` — `mapError()` and `shouldToastError()` (see section 12)
+
+### 11.8 Pages
+
+- `auth/Login.jsx`, `auth/Register.jsx`
+- `dashboard/Dashboard.jsx` — stats cards, parallel loading via `Promise.all`
+- `merchant/MerchantList.jsx`, `MerchantForm.jsx`, `MerchantDetail.jsx` + tabs (KycTab, OverviewTab, PricingTab, SettlementTab, StoresTab)
+- `stores/StoresList.jsx`, `StoreDetail.jsx`
+- `terminal/TerminalList.jsx`, `TerminalDetail.jsx` + tabs (OverviewTab, HealthTab, ProfileTab)
+- `transaction/AuthList.jsx`, `AuthDetail.jsx`, `SettledList.jsx`, `SettledDetail.jsx`
+- `risk/RiskPage.jsx` (Events, Rules, Blacklist tabs)
+- `settlements/SettlementPage.jsx`, `SettlementBatchPage.jsx`, `MerchantSettlementsPage.jsx`
+- `recon/ReconPage.jsx` (Files, Items, Exceptions tabs), `ReconFilePage.jsx`
+- `dispute/DisputesPage.jsx`, `DisputeDetailPage.jsx`
+- `notifications/NotificationsPage.jsx`
+- `profile/ProfilePage.jsx` (Info, Change Password, Preferences, Login History tabs)
+- `search/SearchResultsPage.jsx`
+- `dev/CrashTest.jsx`, `dev/ComponentsDemo.jsx`
+- `ErrorFallback.jsx`, `NotFound.jsx`, `Forbidden.jsx`, `StubPage.jsx`
+
+### 11.9 Components
+
+**Top-level:** `Layout`, `Navbar`, `Sidebar`, `PrivateRoute`, `RoleRoute`, `ErrorBoundary`, `NotificationBell`, `ConfirmModal`, `ErrorAlert`, `Pagination`, `LoadingSpinner`, `EmptyState`, `StatusBadge`, `RiskBadge`, `TxnTypeBadge`, `StatsCard`
+
+**common/** `DateRangePicker`, `MetricCard`, `EntitySelect`, `FileUploader`, `HeartbeatBadge`, `DeadlineCountdown`, `DisputeStageTimeline`
+
+**form/** `FormInput`, `FormSelect`, `FormTextarea`
+
+**Per module:**
+- dashboard/ `QuickActions`
+- merchants/ `MerchantFormModal`
+- stores/ `StoreFormModal`
+- terminals/ `TerminalFormModal`
+- transactions/ `TransactionSummary`
+- disputes/ `DisputeTable`, `DisputeFilters`, `DisputeActionPanel`, `EvidenceList`, `ReasonBadge`
+- risk/ `RiskSummaryPanel`, `RiskCheckWidget`, `RiskResultBadge`, `EventTable`, `EventFilters`, `RuleTable`, `CreateRuleModal`, `BlacklistTable`, `AddBlacklistModal`
+- settlements/ `SettlementTable`, `BatchTable`, `BatchFilters`, `AdjustmentList`, `AdjustmentModal`, `PayoutList`, `PayoutStatusBadge`, `MerchantSettlementSummary`, `RunSettlementModal`
+- recon/ `ReconFileTable`, `ReconFileFilters`, `ReconItemTable`, `ReconItemFilters`, `ReconExceptionTable`, `ReconExceptionFilters`, `ReconSummaryPanel`, `MatchRateDonut`, `LoadReconFileModal`, `ResolveExceptionModal`
+- notifications/ `NotificationDropdown`, `NotificationItem`, `NotificationFilters`, `NotificationStatsBar`
+- profile/ `ProfileHeader`, `ProfileInfoForm`, `ChangePasswordForm`, `PreferencesForm`, `LoginHistoryPanel`
+- search/ `GlobalSearchBar`, `SearchResultsPanel`, `SearchResultGroup`, `SearchResultItem`
+
+### 11.10 Frontend patterns
+
+- Layout route uses `<Outlet />` — one Layout wraps all protected pages
+- Axios request interceptor attaches `Authorization: Bearer <token>`
+- 401 handler clears token + saves `returnTo` + redirects to `/login`
+- Role-gated rendering via `RoleRoute` + conditional buttons
+- `Promise.all` for parallel dashboard loads
+- `EntitySelect` reusable nested-entity dropdown
+- Recharts for donut/line/bar in Reports
+- PapaParse for CSV upload (Recon)
+- Zod for form validation (auth + merchant)
+- Toast suppression via `suppressToast: true` request flag
+- Lazy routes + code splitting (initial bundle ~150 KB)
+
+---
+
+## 12. Frontend Error Handling
+
+### 12.1 `errorMapper.js` — `mapError(err)` priority order
+
+1. **No response (network error)** → `ECONNABORTED` = "request timed out", else "cannot reach server"
+2. **errorCode lookup** — if `data.errorCode` or `data.code` matches MESSAGES dictionary → return mapped message
+3. **Backend message** — return as-is UNLESS it's generic (filtered list: "internal server error", "bad request", "unauthorized", "forbidden", "not found")
+4. **HTTP status fallback:**
+   - 401 → "You are not authorised to perform this action"
+   - 403 → "You don't have permission for this resource"
+   - 404 → "The requested record could not be found"
+   - 409 → "A record with these details already exists"
+   - 422 → "Some fields are invalid"
+   - 5xx → "Something went wrong on our side"
+5. **Generic fallback** — "Something went wrong. Please try again."
+
+### 12.2 Mapped error codes (28 total)
+
+**Auth:** INVALID_CREDENTIALS, ACCOUNT_LOCKED, TOKEN_EXPIRED, UNAUTHORIZED, FORBIDDEN
+**Validation:** VALIDATION_FAILED, DUPLICATE_RESOURCE, RESOURCE_NOT_FOUND
+**Merchant:** MERCHANT_KYC_PENDING, MERCHANT_INACTIVE, MID_ALREADY_EXISTS
+**Terminal:** TID_ALREADY_EXISTS, TERMINAL_INACTIVE, NO_OPEN_BATCH
+**Transaction:** TXN_ALREADY_VOIDED, TXN_ALREADY_REFUNDED, TXN_ALREADY_SETTLED, REFUND_AMOUNT_EXCEEDS, RISK_BLOCKED
+**Settlement:** BATCH_ALREADY_CLOSED, NOTHING_TO_SETTLE
+**Dispute:** DISPUTE_DEADLINE_PASSED, DISPUTE_ALREADY_CLOSED
+**Recon:** RECON_FILE_INVALID, RECON_ITEM_ALREADY_RESOLVED
+**Infrastructure:** SERVICE_UNAVAILABLE, GATEWAY_TIMEOUT, INTERNAL_ERROR, NETWORK_ERROR
+
+### 12.3 `shouldToastError(err)` rules
+
+- Skip 401 (handled by interceptor redirect)
+- Skip `ERR_CANCELED` (request abort)
+- Toast everything else
+
+### 12.4 Per-call suppression
+
+Add `suppressToast: true` to axios request config to silently fail (used for stats endpoints with known backend issues).
+
+---
+
+## 13. Folder Structure
+
+### 13.1 Top-level
+
+```
+ax/
+├── pom.xml                      (root parent POM)
+├── docker-compose.yml           (learning-only, not actively used)
+├── Dockerfile                   (backend monorepo, builds any service via ARG MODULE)
+├── .dockerignore / .gitignore / .gitattributes
+│
+├── docker/mysql/init.sql
+│
+├── eureka-server/
+├── api-gateway/
+├── auth-service/
+├── merchant-service/
+├── terminal-service/
+├── transaction-service/         (switchmodule + fee + idempotency)
+├── risk-service/
+├── settlement-service/
+├── ops-service/                 (dispute + reconciliation + notification + reports)
+├── backend/                     (IGNORE — original monolith, not active)
+└── frontend/                    (React + Vite app)
+```
+
+### 13.2 Service-internal package layout (typical)
+
+```
+com.acquirerx.<service>/
+├── <Service>Application.java
+├── client/         (Feign clients + fallbacks)
+├── config/         (Security, OpenAPI, CORS)
+├── controller/
+├── dto/
+├── entity/
+├── repository/
+└── service/
+```
+
+### 13.3 Notable per-service classes
+
+**api-gateway:**
+- `security/JwtAuthenticationFilter.java`, `security/JwtUtil.java`
+- `ratelimit/BucketService.java`, `ClientIdentifier.java`, `RateLimitFilter.java`, `RateLimitProperties.java`, `TierResolver.java`
+- `controller/CorsCheckController.java`
+
+**auth-service:**
+- `config/security/JwtFilter.java`, `JwtUtil.java`
+- `service/AuthService.java`, `AuditService.java`
+
+**merchant-service:**
+- Split into `merchant/` and `store/` sub-packages
+- `merchant/service/MerchantService.java`, `MerchantOnboardingService.java`
+- `store/service/StoreService.java`
+
+**terminal-service:**
+- `terminal/service/TerminalService.java`, `TerminalProvisioningService.java`
+- `client/MerchantServiceClient.java` + Fallback
+
+**transaction-service:**
+- `switchmodule/service/SwitchService.java`
+- `fee/service/FeeService.java`, `FeeRuleMatcher.java`
+- `idempotency/IdempotencyService.java`, `IdempotencyCleanupScheduler.java`
+- `logging/PanMaskingConverter.java`
+- 3 Feign clients + Fallbacks (Merchant, Risk, Terminal)
+
+**risk-service:**
+- `risk/service/RiskService.java`
+
+**settlement-service:**
+- `settlement/service/SettlementService.java`, `SettlementScheduler.java`, `PayoutService.java`
+- 2 Feign clients + Fallbacks (Merchant, Transaction)
+
+**ops-service:**
+- `dispute/service/DisputeService.java`
+- `notification/service/NotificationService.java`
+- `reconciliation/service/ReconciliationService.java`, `ReconService.java`
+- 2 Feign clients + Fallbacks (Merchant, Transaction)
+
+### 13.4 Frontend folder structure
+
+```
+frontend/src/
+├── App.jsx, main.jsx, index.css
+├── api/             (14 API modules)
+├── context/         (AuthContext, NotificationContext)
+├── hooks/           (useDebounce, useClickOutside)
+├── schemas/         (common, authSchemas, merchantSchemas — Zod)
+├── utils/           (formatters, jwt, roles, toast, errorMapper)
+├── components/      (top-level + common/ + form/ + per-module folders)
+└── pages/           (one folder per module + dev/)
+```
+
+---
+
+## 14. Conventions
+
+### 14.1 Response envelope
+
+```json
+{
+  "message": "string",
+  "data": <payload>,
+  "success": true,         // some services
+  "timestamp": "...",      // some services
+  "status": 0,             // some services
+  "traceId": "..."         // transaction-service only
+}
+```
+
+### 14.2 Pagination request
+
+```json
+{ "page": 0, "size": 100, "sortBy": "fieldName", "sortDir": "ASC|DESC" }
+```
+
+### 14.3 Pagination response (`PagedResponseDTO<T>`)
+
+```json
+{
+  "content": [...],
+  "page": 0, "size": 0,
+  "totalElements": 0, "totalPages": 0,
+  "first": true, "last": true,
+  "hasNext": true, "hasPrevious": true,
+  "numberOfElements": 0
+}
+```
+
+### 14.4 Common enums
+
+- **Status (most resources):** `ACTIVE`, `INACTIVE`, `PENDING`
+- **TxnStatus:** `APPROVED`, `DECLINED`, `REVERSED`, `DISPUTED`
+- **BatchStatus:** `OPEN`, `CLOSED`
+- **Risk action:** `ALLOW`, `REVIEW`, `BLOCK`
+- **Risk severity:** `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`
+- **Blacklist type:** `PAN`, `TERMINAL`, `MERCHANT`
+- **Dispute stage:** `RETRIEVAL`, `CHARGEBACK`, `REPRESENTMENT`, `ARBITRATION`
+- **Recon source:** `SWITCH`, `NETWORK`, `BANK`
+- **Recon match status:** `MATCHED`, `MISMATCH`, `UNMATCHED`
+- **Exception status:** `OPEN`, `RESOLVED`, `WRITTEN_OFF`
+
+### 14.5 Response codes (transaction)
+
+- `00` — Approved
+- `05` — Declined (risk blocked)
+- `51` — Declined (insufficient/exceeds limit)
+
+### 14.6 Auth code prefixes
+
+- Sale: `A<timestamp>`
+- Void: `V<timestamp>`
+- Refund: `R<timestamp>`
+
+### 14.7 Hard-coded business rules
+
+- Single-transaction amount limit: **₹50,000** (above → declined with code 51)
+- Network for all txns: `LOCALSIM` (simulated, no real card networks)
+
+### 14.8 Idempotency
+
+- Header: `Idempotency-Key`
+- Endpoints: `/transactions/authorize`, `/transactions/void`, `/transactions/refund`, `/txns/from-auth/{authId}`
+- Response header on replay: `Idempotent-Replayed: true`
+
+---
+
+## 15. Current Status & Known Issues
+
+### 15.1 Status
+
+| Area | Status |
+|---|---|
+| Backend microservices | ✅ Complete (8 services + Eureka + Gateway) |
+| Auth + JWT + RBAC | ✅ Complete (centralized at gateway) |
+| All 11 business modules | ✅ Complete |
+| Pagination + filter + stats | ✅ Across all modules |
+| Resilience4J circuit breakers | ✅ All Feign clients have fallbacks |
+| Idempotency | ✅ On all transaction write endpoints |
+| Frontend (React + Bootstrap 5) | ✅ Complete (22+ pages, F1–F26 done) |
+| End-to-end testing | 🔄 In progress (phase-by-phase playbook) |
+| README + interview prep | ⏳ After testing |
+| Docker | 📚 Learning-only, not actively used |
+| Unit/integration tests | 📚 Learning-only, not actively built |
+
+### 15.2 Known issues (acceptable for now)
+
+- Some stats endpoints fail silently — UI shows "—" placeholders, suppressed via `suppressToast: true`
+- Reports page may show "data unavailable" on some sections (some 500s on backend)
+- `risk_rule.expression` field is stored but not actually evaluated — only `maxAmount` is used
+- Settlement scheduler runs at 1 AM daily — must be running for EOD batches to auto-create
+
+### 15.3 Important constraints
+
+- **Always use gateway base URL:** `http://localhost:9090/api/v1`
+- **Roles are exactly the 5 listed** — no others exist
+- **Ignore `backend/` folder** entirely — it's the retired monolith
+- **Port 8080 is unavailable** on the system
+
+---
+
+## 16. Working Style with Claude
+
+Kailash prefers:
+- Simple-first explanations, then deep details, with real-world analogies
+- Module-by-module markdown teaching format
+- Full working code, no shortcuts or placeholders
+- Short replies (`next`, `done`, `ok`, `anol` = "and all/etc.") to advance through structured material
+- 2–5 advanced English vocabulary words sprinkled into responses + a "New Words" section at the end with meaning + simple example sentence (unless explicitly turned off for a chat)
+
+When testing or building anything for AcquirerX:
+- **Always use exact API contracts from this document** — never assume field names or endpoints
+- **Always use the gateway base URL** `http://localhost:9090/api/v1`
+- **Roles are the 5 listed above** — no others exist
+- **Ignore the `backend/` folder** entirely
+
+---
+
+## 17. Past Conversations Worth Searching
+
+If continuing work, search past chats for:
+- `AX`, `AX 2`, `AX 3`, `AX 4`, `AX F1`, `AX F3` — main project build sessions
+- `ax test` — testing playbook (phase-by-phase)
+- `project interview` — interview prep roadmap
+- `complete microservices` — microservices migration deep-dive
+- `microservices tekstac` — Spring Cloud exercises (Eureka, Feign, Circuit Breaker)
+- `jira` — 176-item Jira CSV for AcquirerX
+- `prep 1` — earlier consolidation attempt
+
+---
+
+## 18. Quick-Restore Prompt
+
+> "I'm Kailash. I'm working on AcquirerX — a Spring Boot microservices Merchant Acquiring & POS Switch System. 8 microservices behind a gateway at `localhost:9090/api/v1`, MySQL backend, React + Bootstrap 5 frontend at `localhost:5173`. Roles: ADMIN, RISK, DISPUTES, RECON, MERCHANT_OPS. Auth-service is on 9099, Ops-service (handles disputes, recon, notifications, reports) is on 9096. I have the master context document — here it is: [paste this whole doc]. We're currently working on [whatever]."
+
+---
+
+*End of Master Context — paste this whole document into new chats to skip the back-and-forth. Update it as the project evolves.*
