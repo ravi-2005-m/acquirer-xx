@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { terminalApi } from '../../../api/terminalApi';
 import ErrorAlert from '../../../components/ErrorAlert';
+import BatchControlPanel from '../../../components/terminals/BatchControlPanel';
 
 const STATUS_OPTIONS = ['ACTIVE', 'INACTIVE', 'PENDING'];
 
@@ -66,6 +67,13 @@ function OverviewTab({ terminal, onRefresh }) {
             )}
           </div>
         </div>
+      </div>
+
+      <hr />
+
+      <div className="mb-4">
+        <h6 className="text-muted text-uppercase fw-semibold small mb-3">Batch Control</h6>
+        <BatchControlPanel terminalId={terminal.terminalId} tid={terminal.tid} />
       </div>
 
       <hr />

@@ -329,6 +329,10 @@ public class SwitchService {
                 .orElseThrow(() -> new IllegalStateException("Auth message not found: " + authId));
     }
 
+    public AuthResponseDTO getAuthById(Long authId) {
+        return toAuthResponse(getAuthEntityById(authId));
+    }
+
     // MAPPERS
     private AuthResponseDTO toAuthResponse(AuthMessage auth) {
         AuthResponseDTO r = new AuthResponseDTO();

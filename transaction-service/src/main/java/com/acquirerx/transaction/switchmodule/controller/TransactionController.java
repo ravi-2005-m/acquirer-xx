@@ -110,6 +110,11 @@ public class TransactionController {
         return new ApiResponse<>("Transactions fetched", service.getAll(pagination));
     }
 
+    @GetMapping("/transactions/{authId:\\d+}")
+    public ApiResponse<AuthResponseDTO> getAuthById(@PathVariable Long authId) {
+        return new ApiResponse<>("Transaction fetched", service.getAuthById(authId));
+    }
+
     @PostMapping("/transactions/search")
     public ApiResponse<PagedResponseDTO<AuthResponseDTO>> search(
             @Valid @RequestBody TransactionFilterDTO filter,
