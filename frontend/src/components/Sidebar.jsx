@@ -18,7 +18,8 @@ const navItems = [
 ];
 
 const adminItems = [
-  { to: '/admin/users', icon: 'bi-person-gear', label: 'User Management', roles: ['ADMIN'] },
+  { to: '/admin/users',      icon: 'bi-person-gear', label: 'User Management', roles: ['ADMIN'] },
+  { to: '/admin/fee-rules',  icon: 'bi-percent',     label: 'Fee Rules',       roles: ['ADMIN'] },
 ];
 
 function Sidebar({ show, onClose }) {

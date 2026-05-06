@@ -35,6 +35,7 @@ public class Merchant {
     private RiskLevel riskLevel;
 
     @Enumerated(EnumType.STRING)
+    @jakarta.persistence.Column(columnDefinition = "VARCHAR(20)")
     private Status status;
 
     private LocalDateTime createdAt;

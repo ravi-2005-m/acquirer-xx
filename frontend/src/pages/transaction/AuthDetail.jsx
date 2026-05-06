@@ -11,7 +11,8 @@ import { formatDateTime, formatCurrency, maskPAN } from '../../utils/formatters'
 function AuthDetail() {
   const { id } = useParams();
 
-  const [auth, setAuth] = useState(null);
+  const [auth, setAuth]   = useState(null);
+  const [txn, setTxn]     = useState(undefined); // undefined = not yet fetched, null = confirmed no txn
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -33,7 +34,15 @@ function AuthDetail() {
     setError(null);
     try {
       const response = await transactionApi.getAuthById(id);
-      setAuth(response.data?.data ?? response.data ?? null);
+      const authData = response.data?.data ?? response.data ?? null;
+      setAuth(authData);
+      // Fetch associated txn silently — 404 means not yet converted
+      try {
+        const txnRes = await transactionApi.getTxnByAuthId(id);
+        setTxn(txnRes.data?.data ?? txnRes.data ?? null);
+      } catch {
+        setTxn(null);
+      }
     } catch (err) {
       setError(err);
     } finally {
@@ -93,7 +102,9 @@ function AuthDetail() {
         auth.authId,
         `convert-${auth.authId}-${Date.now()}`
       );
-      setConvertSuccess(response.data?.data?.txnId ?? true);
+      const newTxn = response.data?.data ?? null;
+      setConvertSuccess(newTxn?.txnId ?? true);
+      setTxn(newTxn);
       fetchAuth();
     } catch (err) {
       setConvertError(err);
@@ -117,9 +128,11 @@ function AuthDetail() {
     );
   }
 
-  const canRefund  = auth.status === 'APPROVED' && auth.txnType === 'SALE';
-  const canVoid    = auth.status === 'APPROVED';
-  const canConvert = auth.status === 'APPROVED' && (auth.txnType === 'SALE' || auth.txnType === 'REFUND');
+  const txnFetched = txn !== undefined;
+  const hasTxn     = txn !== null && txn !== undefined;
+  const canConvert = auth.status === 'APPROVED' && auth.txnType === 'SALE' && txnFetched && !hasTxn;
+  const canRefund  = auth.status === 'APPROVED' && hasTxn && txn?.settled === true;
+  const canVoid    = auth.status === 'APPROVED' && auth.txnType === 'SALE' && txnFetched && (!hasTxn || txn?.settled === false);
 
   // Build lifecycle events from available fields
   const lifecycleEvents = [

@@ -171,6 +171,12 @@ public class FeeService {
         return toTxnResponse(txn);
     }
 
+    public TxnResponseDTO getTxnByAuthId(Long authId) {
+        Txn txn = txnRepo.findByAuthId(authId)
+                .orElseThrow(() -> new ResourceNotFoundException("Txn not found for authId: " + authId));
+        return toTxnResponse(txn);
+    }
+
     // GET ALL TXNS (PAGED)
     public PagedResponseDTO<TxnResponseDTO> getAllTxns(PaginationParams pagination) {
         pagination.validateSortField(SORTABLE_FIELDS);

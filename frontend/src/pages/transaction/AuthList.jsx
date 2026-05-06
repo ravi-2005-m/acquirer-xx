@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { transactionApi } from '../../api/transactionApi';
 import { merchantApi } from '../../api/merchantApi';
 import { storeApi } from '../../api/storeApi';
@@ -151,11 +151,16 @@ function AuthList() {
 
   return (
     <div className="container-fluid p-4">
-      <div className="mb-3">
-        <h3 className="mb-1">
-          <i className="bi bi-receipt me-2"></i>Transactions
-        </h3>
-        <p className="text-muted small mb-0">Authorization messages — every card swipe processed</p>
+      <div className="d-flex align-items-start justify-content-between mb-3">
+        <div>
+          <h3 className="mb-1">
+            <i className="bi bi-receipt me-2"></i>Transactions
+          </h3>
+          <p className="text-muted small mb-0">Authorization messages — every card swipe processed</p>
+        </div>
+        <Link to="/transactions/new" className="btn btn-primary btn-sm">
+          <i className="bi bi-plus-lg me-1"></i>New Transaction
+        </Link>
       </div>
 
       {/* Filters */}

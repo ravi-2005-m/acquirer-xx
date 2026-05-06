@@ -55,6 +55,11 @@ public class FeeController {
         return new ApiResponse<>("Txn fetched", service.getTxn(txnId));
     }
 
+    @GetMapping("/txns/by-auth/{authId:\\d+}")
+    public ApiResponse<TxnResponseDTO> getTxnByAuthId(@PathVariable Long authId) {
+        return new ApiResponse<>("Txn fetched", service.getTxnByAuthId(authId));
+    }
+
     @GetMapping("/txns")
     public ApiResponse<PagedResponseDTO<TxnResponseDTO>> getAllTxns(@Valid PaginationParams pagination) {
         return new ApiResponse<>("Txns fetched", service.getAllTxns(pagination));
