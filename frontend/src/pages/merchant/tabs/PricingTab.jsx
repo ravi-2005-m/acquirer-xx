@@ -108,6 +108,17 @@ function PricingTab({ merchantId }) {
         </button>
       </div>
 
+      <div className="alert alert-info py-2 px-3 small mb-3 d-flex align-items-start gap-2">
+        <i className="bi bi-info-circle mt-1 flex-shrink-0"></i>
+        <div>
+          Pricing models are kept as historical records. Once deactivated they
+          cannot be reactivated &mdash; that&apos;s by design so the rate charged
+          on every past transaction stays auditable. To change pricing,{' '}
+          <strong>deactivate the current ACTIVE row</strong> and{' '}
+          <strong>add a new pricing model</strong> with the new terms.
+        </div>
+      </div>
+
       {showForm && (
         <div className="card mb-3 border-primary">
           <div className="card-body">

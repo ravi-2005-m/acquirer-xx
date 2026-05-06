@@ -110,17 +110,17 @@ function FeeRuleModal({ show, editRule, onClose, onSaved }) {
   return (
     <>
       <div className="modal d-block" tabIndex="-1" style={{ zIndex: 1055 }}>
-        <div className="modal-dialog modal-lg modal-dialog-scrollable">
+        <div className="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered">
           <div className="modal-content">
-            <div className="modal-header">
-              <h6 className="modal-title fw-semibold">
-                <i className="bi bi-percent me-2"></i>
-                {editRule ? `Edit Rule #${editRule.feeRuleId}` : 'New Fee Rule'}
-              </h6>
-              <button type="button" className="btn-close" onClick={onClose} disabled={isSubmitting} />
-            </div>
-            <form onSubmit={handleSubmit(onSubmit)}>
-              <div className="modal-body">
+            <form onSubmit={handleSubmit(onSubmit)} className="d-flex flex-column" style={{ maxHeight: '90vh' }}>
+              <div className="modal-header">
+                <h6 className="modal-title fw-semibold">
+                  <i className="bi bi-percent me-2"></i>
+                  {editRule ? `Edit Rule #${editRule.feeRuleId}` : 'New Fee Rule'}
+                </h6>
+                <button type="button" className="btn-close" onClick={onClose} disabled={isSubmitting} />
+              </div>
+              <div className="modal-body" style={{ overflowY: 'auto' }}>
                 <div className="row g-2">
                   <div className="col-md-6">
                     <FormInput

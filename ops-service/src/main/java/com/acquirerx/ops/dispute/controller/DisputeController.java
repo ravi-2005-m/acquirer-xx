@@ -46,6 +46,11 @@ public class DisputeController {
         return new ApiResponse<>("Disputes fetched", service.getAll(pagination));
     }
 
+    @GetMapping("/{id:\\d+}")
+    public ApiResponse<DisputeCaseResponseDTO> getById(@PathVariable Long id) {
+        return new ApiResponse<>("Dispute fetched", service.getCaseById(id));
+    }
+
     @GetMapping("/open")
     public ApiResponse<PagedResponseDTO<DisputeCaseResponseDTO>> getOpen(@Valid PaginationParams pagination) {
         return new ApiResponse<>("Open disputes fetched", service.getOpenDisputes(pagination));

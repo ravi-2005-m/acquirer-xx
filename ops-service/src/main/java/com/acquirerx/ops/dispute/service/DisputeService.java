@@ -293,6 +293,10 @@ public class DisputeService {
                 .orElseThrow(() -> new ResourceNotFoundException("Dispute case not found: " + caseId));
     }
 
+    public DisputeCaseResponseDTO getCaseById(Long caseId) {
+        return toCaseResponse(getCaseEntity(caseId));
+    }
+
     private DisputeStage getNextStage(DisputeStage current) {
         return switch (current) {
             case RETRIEVAL -> DisputeStage.CHARGEBACK;

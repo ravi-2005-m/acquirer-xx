@@ -191,9 +191,9 @@ function TransactionSimulator() {
                 <FormInput
                   label="PAN (Masked)"
                   id="panMasked"
-                  placeholder="e.g. 699006X*X*4178"
+                  placeholder="453201******0366"
                   required
-                  hint="Digits, * and X only (13–20 characters)"
+                  hint="6 digits (BIN) + 3–9 of * or X + 4 digits (last four). Example: 453201******0366"
                   error={errors.panMasked?.message}
                   {...register('panMasked')}
                 />

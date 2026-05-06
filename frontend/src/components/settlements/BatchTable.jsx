@@ -2,6 +2,18 @@ import { useNavigate, Link } from 'react-router-dom';
 import StatusBadge from '../StatusBadge';
 import { formatINR, formatDate, formatNumber } from '../../utils/formatters';
 
+// Older settlement batches may have the Feign-fallback placeholder text
+// stored as the merchant name. Treat anything matching that pattern as missing
+// and fall back to "Merchant #<id>".
+function displayMerchantName(name, merchantId) {
+  if (!name) return `Merchant #${merchantId}`;
+  const lower = name.toLowerCase();
+  if (lower === 'unknown' || lower.includes('unavailable')) {
+    return `Merchant #${merchantId}`;
+  }
+  return name;
+}
+
 function BatchTable({ batches, loading }) {
   const navigate = useNavigate();
 
@@ -57,7 +69,7 @@ function BatchTable({ batches, loading }) {
                   className="text-decoration-none"
                   onClick={e => e.stopPropagation()}
                 >
-                  {b.merchantName || `M-${b.merchantId}`}
+                  {displayMerchantName(b.merchantName, b.merchantId)}
                 </Link>
               </td>
               <td className="text-end small">{formatNumber(b.txnCount)}</td>

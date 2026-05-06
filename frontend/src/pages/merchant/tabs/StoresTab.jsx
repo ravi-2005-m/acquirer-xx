@@ -18,9 +18,29 @@ function StoresTab({ merchantId }) {
   const [error, setError] = useState(null);
 
   const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({ storeName: '', address: '', region: '' });
+  const [formData, setFormData] = useState({
+    storeName: '',
+    region: '',
+    address: '',
+    city: '',
+    state: '',
+    pincode: '',
+    contactPerson: '',
+    contactPhone: '',
+  });
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
+
+  const RESET_FORM = {
+    storeName: '',
+    region: '',
+    address: '',
+    city: '',
+    state: '',
+    pincode: '',
+    contactPerson: '',
+    contactPhone: '',
+  };
 
   const fetchStores = useCallback(async () => {
     setLoading(true);
@@ -54,14 +74,20 @@ function StoresTab({ merchantId }) {
     setSubmitting(true);
     setSubmitError(null);
     try {
+      const t = (s) => (s ?? '').trim();
       const payload = {
-        storeName: formData.storeName.trim(),
-        ...(formData.address.trim() && { address: formData.address.trim() }),
-        ...(formData.region.trim() && { region: formData.region.trim() }),
+        storeName: t(formData.storeName),
+        ...(t(formData.region)        && { region:        t(formData.region) }),
+        ...(t(formData.address)       && { address:       t(formData.address) }),
+        ...(t(formData.city)          && { city:          t(formData.city) }),
+        ...(t(formData.state)         && { state:         t(formData.state) }),
+        ...(t(formData.pincode)       && { pincode:       t(formData.pincode) }),
+        ...(t(formData.contactPerson) && { contactPerson: t(formData.contactPerson) }),
+        ...(t(formData.contactPhone)  && { contactPhone:  t(formData.contactPhone) }),
       };
       await storeApi.create(merchantId, payload);
       setShowForm(false);
-      setFormData({ storeName: '', address: '', region: '' });
+      setFormData(RESET_FORM);
       setPage(0);
       fetchStores();
     } catch (err) {
@@ -143,6 +169,80 @@ function StoresTab({ merchantId }) {
                 />
               </div>
 
+              <div className="row">
+                <div className="col-md-4 mb-3">
+                  <label htmlFor="city" className="form-label">City</label>
+                  <input
+                    type="text"
+                    id="city"
+                    name="city"
+                    className="form-control"
+                    value={formData.city}
+                    onChange={handleChange}
+                    disabled={submitting}
+                    placeholder="Bengaluru"
+                  />
+                </div>
+
+                <div className="col-md-4 mb-3">
+                  <label htmlFor="state" className="form-label">State</label>
+                  <input
+                    type="text"
+                    id="state"
+                    name="state"
+                    className="form-control"
+                    value={formData.state}
+                    onChange={handleChange}
+                    disabled={submitting}
+                    placeholder="KA"
+                  />
+                </div>
+
+                <div className="col-md-4 mb-3">
+                  <label htmlFor="pincode" className="form-label">Pincode</label>
+                  <input
+                    type="text"
+                    id="pincode"
+                    name="pincode"
+                    className="form-control"
+                    value={formData.pincode}
+                    onChange={handleChange}
+                    disabled={submitting}
+                    placeholder="560001"
+                  />
+                </div>
+              </div>
+
+              <div className="row">
+                <div className="col-md-6 mb-3">
+                  <label htmlFor="contactPerson" className="form-label">Contact Person</label>
+                  <input
+                    type="text"
+                    id="contactPerson"
+                    name="contactPerson"
+                    className="form-control"
+                    value={formData.contactPerson}
+                    onChange={handleChange}
+                    disabled={submitting}
+                    placeholder="Ravi Kumar"
+                  />
+                </div>
+
+                <div className="col-md-6 mb-3">
+                  <label htmlFor="contactPhone" className="form-label">Contact Phone</label>
+                  <input
+                    type="tel"
+                    id="contactPhone"
+                    name="contactPhone"
+                    className="form-control"
+                    value={formData.contactPhone}
+                    onChange={handleChange}
+                    disabled={submitting}
+                    placeholder="+91 9876543210"
+                  />
+                </div>
+              </div>
+
               <div className="d-flex gap-2">
                 <button type="submit" className="btn btn-primary btn-sm" disabled={submitting}>
                   {submitting ? (
@@ -187,7 +287,8 @@ function StoresTab({ merchantId }) {
                   <th>ID</th>
                   <th>Store Name</th>
                   <th>Region</th>
-                  <th>Address</th>
+                  <th>City</th>
+                  <th>Contact</th>
                   <th>Status</th>
                   <th>Created</th>
                 </tr>
@@ -198,8 +299,15 @@ function StoresTab({ merchantId }) {
                     <td className="text-muted small">{s.storeId}</td>
                     <td className="fw-semibold small">{s.storeName}</td>
                     <td className="text-muted small">{s.region || '—'}</td>
-                    <td className="text-muted small" style={{ maxWidth: '200px' }}>
-                      <span className="text-truncate d-block">{s.address || '—'}</span>
+                    <td className="text-muted small">
+                      {s.city || s.state
+                        ? `${s.city || ''}${s.city && s.state ? ', ' : ''}${s.state || ''}`
+                        : '—'}
+                    </td>
+                    <td className="text-muted small">
+                      {s.contactPerson || s.contactPhone
+                        ? `${s.contactPerson || ''}${s.contactPerson && s.contactPhone ? ' · ' : ''}${s.contactPhone || ''}`
+                        : '—'}
                     </td>
                     <td><StatusBadge status={s.status} size="sm" /></td>
                     <td className="text-muted small">{formatDate(s.createdAt)}</td>

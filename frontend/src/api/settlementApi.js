@@ -1,27 +1,32 @@
 import api from './axiosConfig';
 
-// ─── TODO: Stats endpoints currently fail (backend bugs) ────────
-// Stats/summary calls have suppressToast: true to hide the user-facing
-// red error toast. Pages handle the failure gracefully via try/catch
-// and show "—" placeholders. Remove this suppression once the backend
-// 500/404 errors are fixed.
-// ────────────────────────────────────────────────────────────────
-
-const pp = (p = {}) => ({
+// Pagination helper for SettlementBatch endpoints (default sort: settleBatchId).
+const batchPp = (p = {}) => ({
   page: p.page ?? 0,
   size: p.size ?? 10,
   sortBy: p.sortBy ?? 'settleBatchId',
   sortDir: p.sortDir ?? 'DESC',
 });
 
+// Pagination helper for Adjustment endpoints (allowed sort fields per backend:
+// type, status, amount, merchantId, postedDate, adjustmentId).
+const adjustmentPp = (p = {}) => ({
+  page: p.page ?? 0,
+  size: p.size ?? 10,
+  sortBy: p.sortBy ?? 'postedDate',
+  sortDir: p.sortDir ?? 'DESC',
+});
+
 export const settlementApi = {
   // Batch lists
-  getBatches:            (pagination)             => api.get('/settlement', { params: pp(pagination) }),
-  searchBatches:         (filters, pagination)    => api.post('/settlement/search', filters, { params: pp(pagination) }),
-  getMerchantBatches:    (merchantId, pagination) => api.get(`/settlement/merchant/${merchantId}`, { params: pp(pagination) }),
+  getBatches:            (pagination)             => api.get('/settlement', { params: batchPp(pagination) }),
+  searchBatches:         (filters, pagination)    => api.post('/settlement/search', filters, { params: batchPp(pagination) }),
+  getMerchantBatches:    (merchantId, pagination) => api.get(`/settlement/merchant/${merchantId}`, { params: batchPp(pagination) }),
 
   // Batch / merchant actions
-  runMerchantSettlement: (merchantId)             => api.post(`/settlement/merchant/${merchantId}`),
+  // Suppress the global red toast — RunSettlementModal handles its own
+  // inline messaging so the "no unsettled txns" case can be shown as info.
+  runMerchantSettlement: (merchantId)             => api.post(`/settlement/merchant/${merchantId}`, null, { suppressToast: true }),
   triggerBatchPayout:    (settleBatchId)          => api.post(`/settlement/payout/${settleBatchId}`),
 
   // Payouts
@@ -35,5 +40,5 @@ export const settlementApi = {
   // Adjustments
   createAdjustment:        (payload)              => api.post('/settlement/adjustments', payload),
   getMerchantAdjustments:  (merchantId, pagination) =>
-    api.get(`/settlement/adjustments/merchant/${merchantId}`, { params: pp(pagination) }),
+    api.get(`/settlement/adjustments/merchant/${merchantId}`, { params: adjustmentPp(pagination) }),
 };

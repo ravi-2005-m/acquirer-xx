@@ -148,6 +148,16 @@ function SettlementTab({ merchantId }) {
         </div>
       </div>
 
+      <div className="alert alert-info py-2 px-3 small mb-3 d-flex align-items-start gap-2">
+        <i className="bi bi-info-circle mt-1 flex-shrink-0"></i>
+        <div>
+          Settlement profiles are historical records. Once deactivated they
+          cannot be reactivated. To change cycle / bank account / reserve,{' '}
+          <strong>deactivate the current profile</strong> and{' '}
+          <strong>add a new one</strong> with the updated terms.
+        </div>
+      </div>
+
       {showForm && (
         <div className="card mb-3 border-primary">
           <div className="card-body">

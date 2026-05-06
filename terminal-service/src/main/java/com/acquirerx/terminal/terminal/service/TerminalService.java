@@ -96,7 +96,9 @@ public class TerminalService {
     }
 
     public TerminalResponseDTO getTerminalById(Long terminalId) {
-        return toResponse(getEntityById(terminalId));
+        // Use the Feign-enriched mapper so the detail page shows the
+        // resolved store and merchant names (matches list/search behaviour).
+        return toResponseWithFeignLookup(getEntityById(terminalId));
     }
 
     public PagedResponseDTO<TerminalResponseDTO> getByStore(Long storeId, PaginationParams pagination) {

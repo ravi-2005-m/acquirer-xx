@@ -48,12 +48,18 @@ public class SettlementService {
     private final MerchantServiceClient merchantClient;
 
     public SettlementBatchResponseDTO settle(Long merchantId) {
-        String merchantName = "Unknown";
+        String merchantName = null;
         try {
             Map<String, Object> merchantResp = merchantClient.getMerchantById(merchantId);
             Map<String, Object> merchantData = (Map<String, Object>) merchantResp.get("data");
             if (merchantData != null && merchantData.get("legalName") != null) {
-                merchantName = merchantData.get("legalName").toString();
+                String resolved = merchantData.get("legalName").toString();
+                // Don't persist the Feign fallback placeholder — leave the
+                // column null and let the frontend fall back to "Merchant #X".
+                if (!resolved.toLowerCase().contains("unavailable")
+                        && !"unknown".equalsIgnoreCase(resolved)) {
+                    merchantName = resolved;
+                }
             }
         } catch (Exception e) {
             log.warn("Could not fetch merchant info: {}", e.getMessage());
@@ -185,12 +191,16 @@ public class SettlementService {
     }
 
     public SettlementSummaryDTO getSettlementSummary(Long merchantId) {
-        String merchantName = "Unknown";
+        String merchantName = null;
         try {
             Map<String, Object> resp = merchantClient.getMerchantById(merchantId);
             Map<String, Object> data = (Map<String, Object>) resp.get("data");
             if (data != null && data.get("legalName") != null) {
-                merchantName = data.get("legalName").toString();
+                String resolved = data.get("legalName").toString();
+                if (!resolved.toLowerCase().contains("unavailable")
+                        && !"unknown".equalsIgnoreCase(resolved)) {
+                    merchantName = resolved;
+                }
             }
         } catch (Exception e) {
             log.warn("Could not fetch merchant name: {}", e.getMessage());

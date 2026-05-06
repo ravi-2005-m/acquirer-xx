@@ -5,7 +5,7 @@ import EntitySelect from '../common/EntitySelect';
 
 const fetchMerchantOptions = ({ search }) =>
   merchantApi
-    .search({ businessName: search || undefined }, { size: 30 })
+    .search({ legalName: search || undefined }, { size: 30 })
     .then(res => {
       const body = res.data?.data ?? res.data ?? {};
       return body.content ?? (Array.isArray(body) ? body : []);
@@ -14,17 +14,19 @@ const fetchMerchantOptions = ({ search }) =>
 function RunSettlementModal({ show, merchantId, merchantName, onClose, onCompleted }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError]           = useState(null);
+  const [info, setInfo]             = useState(null);
   const [picked, setPicked]         = useState(null);
 
   if (!show) return null;
 
   const needsPicker          = !merchantId;
-  const resolvedId           = merchantId ?? picked?.merchantId;
-  const resolvedName         = merchantName ?? picked?.businessName ?? picked?.legalName ?? null;
+  const resolvedId           = merchantId ?? picked?.merchantId ?? null;
+  const resolvedName         = merchantName ?? picked?.legalName ?? picked?.businessName ?? null;
 
   const handleClose = () => {
     setPicked(null);
     setError(null);
+    setInfo(null);
     onClose();
   };
 
@@ -32,6 +34,7 @@ function RunSettlementModal({ show, merchantId, merchantName, onClose, onComplet
     if (!resolvedId) return;
     setSubmitting(true);
     setError(null);
+    setInfo(null);
     try {
       const res   = await settlementApi.runMerchantSettlement(resolvedId);
       const batch = res.data?.data ?? res.data ?? null;
@@ -39,7 +42,20 @@ function RunSettlementModal({ show, merchantId, merchantName, onClose, onComplet
       onCompleted?.(batch);
       onClose();
     } catch (err) {
-      setError(err?.response?.data?.message || 'Failed to run settlement — please try again');
+      const data = err?.response?.data;
+      const backendMsg = data?.message || data?.error || '';
+
+      // "No unsettled transactions" is an expected condition (everything is
+      // already settled) — show a friendly info alert, not a red error.
+      if (/no unsettled transactions/i.test(backendMsg)) {
+        const subject = resolvedName || `Merchant #${resolvedId}`;
+        setInfo(
+          `All transactions for ${subject} are already settled. ` +
+          `Run a new transaction first to create another settlement batch.`
+        );
+      } else {
+        setError(backendMsg || 'Failed to run settlement — please try again');
+      }
     } finally {
       setSubmitting(false);
     }
@@ -65,16 +81,27 @@ function RunSettlementModal({ show, merchantId, merchantName, onClose, onComplet
                 </div>
               )}
 
+              {info && (
+                <div className="alert alert-info small d-flex align-items-start gap-2">
+                  <i className="bi bi-info-circle mt-1 flex-shrink-0"></i>
+                  <span>{info}</span>
+                </div>
+              )}
+
               {needsPicker && (
                 <div className="mb-3">
                   <label className="form-label fw-medium">
                     Select Merchant <span className="text-danger">*</span>
                   </label>
                   <EntitySelect
-                    value={picked}
-                    onChange={setPicked}
+                    value={picked ? String(picked.merchantId) : ''}
+                    onChange={(_id, option) => {
+                      setPicked(option);
+                      setInfo(null);
+                      setError(null);
+                    }}
                     fetchOptions={fetchMerchantOptions}
-                    getOptionLabel={m => m.businessName ?? m.legalName ?? `Merchant #${m.merchantId}`}
+                    getOptionLabel={m => m.legalName ?? m.businessName ?? `Merchant #${m.merchantId}`}
                     getOptionId={m => m.merchantId}
                     placeholder="Search merchant…"
                     disabled={submitting}
