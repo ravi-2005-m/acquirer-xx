@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { profileApi } from '../../api/profileApi';
 
 function ProfileInfoForm({ profile, onUpdated }) {
-  const [form, setForm]       = useState({ firstName: '', lastName: '', email: '', phone: '' });
+  const [form, setForm]       = useState({ name: '', email: '', phone: '' });
   const [errors, setErrors]   = useState({});
   const [saving, setSaving]   = useState(false);
   const [success, setSuccess] = useState(false);
@@ -11,10 +11,9 @@ function ProfileInfoForm({ profile, onUpdated }) {
   useEffect(() => {
     if (profile) {
       setForm({
-        firstName: profile.firstName || '',
-        lastName:  profile.lastName  || '',
-        email:     profile.email     || '',
-        phone:     profile.phone     || '',
+        name:  profile.name  || '',
+        email: profile.email || '',
+        phone: profile.phone || '',
       });
       setErrors({});
       setSuccess(false);
@@ -30,15 +29,14 @@ function ProfileInfoForm({ profile, onUpdated }) {
     const errs = {};
     if (!form.email.trim()) errs.email = 'Email is required';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errs.email = 'Invalid email format';
-    if (form.phone && !/^\d{10}$/.test(form.phone)) errs.phone = 'Phone must be 10 digits';
+    if (form.phone && !/^[+0-9 ()-]{6,20}$/.test(form.phone)) errs.phone = 'Phone must be 6-20 digits';
     return errs;
   };
 
   const isDirty =
-    form.firstName !== (profile.firstName || '') ||
-    form.lastName  !== (profile.lastName  || '') ||
-    form.email     !== (profile.email     || '') ||
-    form.phone     !== (profile.phone     || '');
+    form.name  !== (profile.name  || '') ||
+    form.email !== (profile.email || '') ||
+    form.phone !== (profile.phone || '');
 
   const handleSubmit = async () => {
     const errs = validate();
@@ -48,10 +46,9 @@ function ProfileInfoForm({ profile, onUpdated }) {
     setSuccess(false);
     try {
       const res = await profileApi.updateMyProfile({
-        firstName: form.firstName.trim() || null,
-        lastName:  form.lastName.trim()  || null,
-        email:     form.email.trim(),
-        phone:     form.phone.trim()     || null,
+        name:  form.name.trim()  || null,
+        email: form.email.trim(),
+        phone: form.phone.trim() || null,
       });
       const updated = res.data?.data ?? res.data;
       setSuccess(true);
@@ -66,10 +63,9 @@ function ProfileInfoForm({ profile, onUpdated }) {
 
   const handleReset = () => {
     setForm({
-      firstName: profile.firstName || '',
-      lastName:  profile.lastName  || '',
-      email:     profile.email     || '',
-      phone:     profile.phone     || '',
+      name:  profile.name  || '',
+      email: profile.email || '',
+      phone: profile.phone || '',
     });
     setErrors({});
   };
@@ -83,20 +79,13 @@ function ProfileInfoForm({ profile, onUpdated }) {
         {success && <div className="alert alert-success py-2 small"><i className="bi bi-check-circle me-1"></i>Profile updated successfully.</div>}
 
         <div className="row g-3">
-          <div className="col-md-6">
-            <label className="form-label small fw-semibold">First Name</label>
-            <input className="form-control" value={form.firstName} onChange={e => set('firstName', e.target.value)} />
-          </div>
-          <div className="col-md-6">
-            <label className="form-label small fw-semibold">Last Name</label>
-            <input className="form-control" value={form.lastName} onChange={e => set('lastName', e.target.value)} />
+          <div className="col-md-12">
+            <label className="form-label small fw-semibold">Full Name</label>
+            <input className="form-control" value={form.name} onChange={e => set('name', e.target.value)} />
           </div>
           <div className="col-md-8">
             <label className="form-label small fw-semibold">
               Email <span className="text-danger">*</span>
-              {profile.emailVerified === false && (
-                <span className="badge bg-warning text-dark ms-2">Unverified</span>
-              )}
             </label>
             <input
               type="email"
@@ -111,8 +100,8 @@ function ProfileInfoForm({ profile, onUpdated }) {
             <input
               type="text"
               className={`form-control ${errors.phone ? 'is-invalid' : ''}`}
-              placeholder="10 digits"
-              maxLength={10}
+              placeholder="+91 9999999999"
+              maxLength={20}
               value={form.phone}
               onChange={e => set('phone', e.target.value)}
             />

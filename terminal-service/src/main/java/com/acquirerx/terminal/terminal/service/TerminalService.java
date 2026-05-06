@@ -32,6 +32,22 @@ public class TerminalService {
     private final TerminalRepository terminalRepository;
     private final MerchantServiceClient merchantServiceClient;
 
+    /**
+     * Cross-service responses are wrapped in {@code ApiResponse{message, data}}.
+     * This helper unwraps the {@code data} envelope so callers can read the
+     * actual entity fields directly. If the response isn't wrapped (e.g. the
+     * Feign client returned raw JSON), the original map is returned as-is.
+     */
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> unwrapApiResponse(Map<String, Object> response) {
+        if (response == null) return null;
+        Object data = response.get("data");
+        if (data instanceof Map) {
+            return (Map<String, Object>) data;
+        }
+        return response;
+    }
+
     public TerminalResponseDTO create(Long storeId, TerminalRequestDTO dto) {
         if (terminalRepository.existsByTid(dto.getTid())) {
             throw new IllegalArgumentException("Terminal with TID " + dto.getTid() + " already exists");
@@ -40,7 +56,7 @@ public class TerminalService {
         // Call Feign client to verify store exists and get merchant info
         Map<String, Object> storeResponse;
         try {
-            storeResponse = merchantServiceClient.getStoreById(storeId);
+            storeResponse = unwrapApiResponse(merchantServiceClient.getStoreById(storeId));
         } catch (Exception e) {
             log.warn("Failed to verify store {} with merchant-service: {}", storeId, e.getMessage());
             throw new ResourceNotFoundException("Store not found or merchant-service unavailable");
@@ -56,7 +72,7 @@ public class TerminalService {
         terminal.setCapability(dto.getCapability());
         terminal.setStoreId(storeId);
 
-        // Extract merchantId from store response (assumes response contains merchantId)
+        // Extract merchantId from the unwrapped store payload
         Object merchantIdObj = storeResponse.get("merchantId");
         if (merchantIdObj != null) {
             terminal.setMerchantId(((Number) merchantIdObj).longValue());
@@ -208,14 +224,16 @@ public class TerminalService {
         // Try to enrich with store/merchant names via Feign (non-blocking on failure)
         if (terminal.getStoreId() != null) {
             try {
-                Map<String, Object> storeResponse = merchantServiceClient.getStoreById(terminal.getStoreId());
+                Map<String, Object> storeResponse =
+                        unwrapApiResponse(merchantServiceClient.getStoreById(terminal.getStoreId()));
                 if (storeResponse != null) {
                     response.setStoreName((String) storeResponse.get("storeName"));
                     Object merchantIdObj = storeResponse.get("merchantId");
                     if (merchantIdObj != null) {
                         Long merchantId = ((Number) merchantIdObj).longValue();
                         try {
-                            Map<String, Object> merchantResponse = merchantServiceClient.getMerchantById(merchantId);
+                            Map<String, Object> merchantResponse =
+                                    unwrapApiResponse(merchantServiceClient.getMerchantById(merchantId));
                             if (merchantResponse != null) {
                                 response.setMerchantName((String) merchantResponse.get("legalName"));
                             }

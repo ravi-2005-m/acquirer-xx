@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { reconApi } from '../../api/reconApi';
+import { toBackendDateTime } from '../../utils/formatters';
 import ReconSummaryPanel from '../../components/recon/ReconSummaryPanel';
 import MatchRateDonut from '../../components/recon/MatchRateDonut';
 import ReconFileFilters from '../../components/recon/ReconFileFilters';
@@ -74,8 +75,8 @@ function ReconPage() {
       const search = {};
       if (fileFilters.source)      search.source     = fileFilters.source;
       if (fileFilters.fileStatus)  search.fileStatus = fileFilters.fileStatus;
-      if (fileFilters.fromDate)    search.fromDate   = fileFilters.fromDate;
-      if (fileFilters.toDate)      search.toDate     = fileFilters.toDate;
+      if (fileFilters.fromDate)    search.fromDate   = toBackendDateTime(fileFilters.fromDate, false);
+      if (fileFilters.toDate)      search.toDate     = toBackendDateTime(fileFilters.toDate,   true);
 
       const pagination = { page: filePage, size: PAGE_SIZE };
       const hasFilters = Object.keys(search).length > 0;

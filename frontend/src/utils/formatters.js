@@ -74,3 +74,15 @@ export function truncate(text, maxLength = 50) {
   if (text.length <= maxLength) return text;
   return text.slice(0, maxLength) + '…';
 }
+
+// Convert a "YYYY-MM-DD" date string (from <input type="date">) to an ISO
+// LocalDateTime string the backend can deserialize. `endOfDay=true` extends
+// the time to 23:59:59 so toDate filters are inclusive of the entire day.
+// Returns null for empty/invalid input.
+export function toBackendDateTime(value, endOfDay = false) {
+  if (!value) return null;
+  // Already a full datetime (e.g. 2026-05-06T12:34:56) — pass through.
+  if (typeof value === 'string' && value.includes('T')) return value;
+  // Date-only "YYYY-MM-DD" — append start- or end-of-day time.
+  return endOfDay ? `${value}T23:59:59` : `${value}T00:00:00`;
+}

@@ -1,72 +1,51 @@
 import { useState } from 'react';
 import { disputeApi } from '../../api/disputeApi';
+import { useAuth } from '../../context/AuthContext';
 
-const ACTIONS = {
-  OPEN: [
-    { id: 'accept',  label: 'Accept Dispute',  variant: 'success',   icon: 'bi-check-circle',  requiresJustification: true,  minLength: 20 },
-    { id: 'reject',  label: 'Reject Dispute',  variant: 'danger',    icon: 'bi-x-circle',      requiresJustification: true,  minLength: 20 },
-  ],
-  EVIDENCE_REVIEW: [
-    { id: 'pre_arb', label: 'Send to Pre-Arbitration', variant: 'warning', icon: 'bi-arrow-right-circle', requiresJustification: true, minLength: 30 },
-    { id: 'accept',  label: 'Accept Dispute',           variant: 'success', icon: 'bi-check-circle',       requiresJustification: true, minLength: 20 },
-    { id: 'reject',  label: 'Reject Dispute',           variant: 'danger',  icon: 'bi-x-circle',           requiresJustification: true, minLength: 20 },
-  ],
-  PRE_ARBITRATION: [
-    { id: 'arbitration', label: 'Escalate to Arbitration', variant: 'danger',   icon: 'bi-exclamation-circle', requiresJustification: true, minLength: 30 },
-    { id: 'resolve',     label: 'Mark Resolved',           variant: 'success',  icon: 'bi-check-all',          requiresJustification: true, minLength: 20 },
-  ],
-  ARBITRATION: [
-    { id: 'resolve', label: 'Mark Resolved', variant: 'success', icon: 'bi-check-all', requiresJustification: true, minLength: 20 },
-  ],
-};
+const ACTION_TYPES = [
+  { value: 'REQUEST_DOCS',    label: 'Request Documents',  variant: 'secondary', icon: 'bi-file-earmark-arrow-up' },
+  { value: 'SUBMIT_EVIDENCE', label: 'Submit Evidence',    variant: 'info',      icon: 'bi-paperclip' },
+  { value: 'ACCEPT',          label: 'Accept Dispute',     variant: 'success',   icon: 'bi-check-circle' },
+  { value: 'REJECT',          label: 'Reject Dispute',     variant: 'danger',    icon: 'bi-x-circle' },
+  { value: 'WRITE_OFF',       label: 'Write Off',          variant: 'warning',   icon: 'bi-eraser' },
+  { value: 'ESCALATE',        label: 'Escalate',           variant: 'dark',      icon: 'bi-arrow-up-right-circle' },
+];
 
-const ACTION_FN = {
-  accept:      (id, payload) => disputeApi.accept(id, payload),
-  reject:      (id, payload) => disputeApi.reject(id, payload),
-  pre_arb:     (id, payload) => disputeApi.sendToPreArbitration(id, payload),
-  arbitration: (id, payload) => disputeApi.sendToArbitration(id, payload),
-  resolve:     (id, payload) => disputeApi.resolve(id, payload),
-};
+const STAGE_ORDER = ['RETRIEVAL', 'CHARGEBACK', 'REPRESENTMENT', 'ARBITRATION'];
 
 function DisputeActionPanel({ dispute, onActionComplete }) {
-  const [selected, setSelected] = useState(null);
-  const [justification, setJustification] = useState('');
+  const { user } = useAuth();
+  const caseId = dispute?.caseId ?? dispute?.disputeId ?? dispute?.id;
+  const isClosed = (dispute?.status || '').toUpperCase() === 'CLOSED';
+  const stage = (dispute?.stage || '').toUpperCase();
+  const canAdvance = !isClosed && STAGE_ORDER.indexOf(stage) >= 0 && STAGE_ORDER.indexOf(stage) < STAGE_ORDER.length - 1;
+
+  const [actionType, setActionType] = useState('');
+  const [notes, setNotes]           = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError]           = useState(null);
 
-  const actions = ACTIONS[dispute?.status] ?? [];
-
-  if (!dispute || actions.length === 0) {
+  if (!dispute || isClosed) {
     return (
       <div className="text-muted small">
-        <i className="bi bi-lock me-1"></i>No actions available for this status.
+        <i className="bi bi-lock me-1"></i>No actions available — dispute is closed.
       </div>
     );
   }
 
-  const selectedAction = actions.find(a => a.id === selected);
-  const charsLeft = selectedAction
-    ? Math.max(0, selectedAction.minLength - justification.length)
-    : 0;
-
-  const handleAction = (actionId) => {
-    setSelected(actionId);
-    setJustification('');
-    setError(null);
-  };
-
-  const handleSubmit = async () => {
-    if (!selected) return;
+  const submitAction = async () => {
+    if (!actionType) return;
     setSubmitting(true);
     setError(null);
     try {
-      const fn = ACTION_FN[selected];
-      await fn(dispute.disputeId ?? dispute.id, {
-        justification: justification.trim(),
-        disputeId: dispute.disputeId ?? dispute.id,
+      await disputeApi.addAction({
+        caseId,
+        actionType,
+        actorId: user?.id ?? 1,
+        notes: notes.trim() || null,
       });
-      setSelected(null);
-      setJustification('');
+      setActionType('');
+      setNotes('');
       onActionComplete?.();
     } catch (err) {
       setError(err?.response?.data?.message || 'Action failed — please try again');
@@ -75,71 +54,90 @@ function DisputeActionPanel({ dispute, onActionComplete }) {
     }
   };
 
-  const handleCancel = () => {
-    setSelected(null);
-    setJustification('');
+  const advanceStage = async () => {
+    setSubmitting(true);
     setError(null);
+    try {
+      await disputeApi.advanceStage(caseId);
+      onActionComplete?.();
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Failed to advance stage');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  if (selected && selectedAction?.requiresJustification) {
-    return (
-      <div>
-        <div className="mb-2 fw-semibold small">
-          <i className={`bi ${selectedAction.icon} me-1 text-${selectedAction.variant}`}></i>
-          {selectedAction.label}
-        </div>
-
-        {error && (
-          <div className="alert alert-danger small py-2 mb-2">
-            <i className="bi bi-exclamation-triangle me-1"></i>{error}
-          </div>
-        )}
-
-        <textarea
-          className="form-control form-control-sm mb-1"
-          rows={4}
-          placeholder="Justification / notes..."
-          value={justification}
-          onChange={e => setJustification(e.target.value)}
-          disabled={submitting}
-        />
-        <div className="d-flex justify-content-between mb-3">
-          <small className={charsLeft > 0 ? 'text-danger' : 'text-success'}>
-            {charsLeft > 0 ? `${charsLeft} more characters needed` : '✓ Minimum met'}
-          </small>
-          <small className="text-muted">{justification.length} chars</small>
-        </div>
-
-        <div className="d-flex gap-2">
-          <button
-            className={`btn btn-${selectedAction.variant} btn-sm flex-grow-1`}
-            onClick={handleSubmit}
-            disabled={submitting || charsLeft > 0}
-          >
-            {submitting
-              ? <><span className="spinner-border spinner-border-sm me-1" role="status"></span>Processing...</>
-              : <><i className={`bi ${selectedAction.icon} me-1`}></i>Confirm</>
-            }
-          </button>
-          <button className="btn btn-outline-secondary btn-sm" onClick={handleCancel} disabled={submitting}>
-            Cancel
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const closeDispute = async () => {
+    setSubmitting(true);
+    setError(null);
+    try {
+      await disputeApi.closeDispute(caseId);
+      onActionComplete?.();
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Failed to close dispute');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
-    <div className="d-flex flex-column gap-2">
-      {actions.map(a => (
-        <button
-          key={a.id}
-          className={`btn btn-outline-${a.variant} btn-sm text-start`}
-          onClick={() => handleAction(a.id)}
+    <div className="d-flex flex-column gap-3">
+      {error && (
+        <div className="alert alert-danger small py-2 mb-0">
+          <i className="bi bi-exclamation-triangle me-1"></i>{error}
+        </div>
+      )}
+
+      <div>
+        <label className="form-label small fw-semibold mb-1">Log an action</label>
+        <select
+          className="form-select form-select-sm mb-2"
+          value={actionType}
+          onChange={e => setActionType(e.target.value)}
+          disabled={submitting}
         >
-          <i className={`bi ${a.icon} me-2`}></i>{a.label}
+          <option value="">— Select an action —</option>
+          {ACTION_TYPES.map(a => (
+            <option key={a.value} value={a.value}>{a.label}</option>
+          ))}
+        </select>
+        <textarea
+          className="form-control form-control-sm mb-2"
+          rows={3}
+          placeholder="Notes (optional)"
+          value={notes}
+          onChange={e => setNotes(e.target.value)}
+          disabled={submitting}
+        />
+        <button
+          className="btn btn-primary btn-sm w-100"
+          onClick={submitAction}
+          disabled={submitting || !actionType}
+        >
+          {submitting
+            ? <><span className="spinner-border spinner-border-sm me-1" role="status"></span>Saving…</>
+            : <><i className="bi bi-journal-plus me-1"></i>Log Action</>
+          }
         </button>
-      ))}
+      </div>
+
+      <div className="border-top pt-3 d-flex flex-column gap-2">
+        <button
+          className="btn btn-outline-warning btn-sm"
+          onClick={advanceStage}
+          disabled={submitting || !canAdvance}
+          title={canAdvance ? 'Move dispute to the next stage' : 'No further stage to advance to'}
+        >
+          <i className="bi bi-arrow-right-circle me-1"></i>Advance Stage
+        </button>
+        <button
+          className="btn btn-outline-danger btn-sm"
+          onClick={closeDispute}
+          disabled={submitting}
+        >
+          <i className="bi bi-x-octagon me-1"></i>Close Dispute
+        </button>
+      </div>
     </div>
   );
 }

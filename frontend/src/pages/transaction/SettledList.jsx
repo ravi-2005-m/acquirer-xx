@@ -10,7 +10,7 @@ import Pagination from '../../components/Pagination';
 import EntitySelect from '../../components/common/EntitySelect';
 import DateRangePicker from '../../components/common/DateRangePicker';
 import TransactionSummary from '../../components/transactions/TransactionSummary';
-import { formatDateTime, formatCurrency } from '../../utils/formatters';
+import { formatDateTime, formatCurrency, toBackendDateTime } from '../../utils/formatters';
 
 const fetchMerchantsOptions = ({ search }) =>
   (search
@@ -57,8 +57,8 @@ function SettledList() {
               ...(statusFilter   && { status: statusFilter }),
               ...(settledFilter !== '' && { settled: settledFilter === 'true' }),
               ...(merchantFilter && { merchantId: merchantFilter }),
-              ...(fromDate       && { fromDate }),
-              ...(toDate         && { toDate }),
+              ...(fromDate       && { fromDate: toBackendDateTime(fromDate, false) }),
+              ...(toDate         && { toDate:   toBackendDateTime(toDate,   true)  }),
               ...(minAmount      && { minAmount: parseFloat(minAmount) }),
               ...(maxAmount      && { maxAmount: parseFloat(maxAmount) }),
             },

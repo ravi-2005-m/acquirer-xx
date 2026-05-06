@@ -124,7 +124,11 @@ function TerminalFormModal({ show, existing, defaultStoreId, onClose, onSaved })
         : await terminalApi.createInStore(form.storeId, payload);
       onSaved(resp.data?.data ?? resp.data);
     } catch (err) {
-      setServerError(err.response?.data?.message || 'Failed to save terminal');
+      const data = err.response?.data;
+      const fieldErrs = data?.fieldErrors
+        ? Object.values(data.fieldErrors).join('. ')
+        : null;
+      setServerError(fieldErrs || data?.message || data?.error || 'Failed to save terminal');
     } finally {
       setSubmitting(false);
     }

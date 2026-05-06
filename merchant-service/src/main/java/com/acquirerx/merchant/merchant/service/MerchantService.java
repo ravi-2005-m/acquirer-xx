@@ -42,7 +42,7 @@ public class MerchantService {
         merchant.setDoingBusinessAs(dto.getDoingBusinessAs());
         merchant.setMcc(dto.getMcc());
         merchant.setContactInfo(dto.getContactInfo());
-        merchant.setStatus(Status.ACTIVE);
+        merchant.setStatus(Status.PENDING);
         merchant.setRiskLevel(dto.getRiskLevel() != null ? dto.getRiskLevel() : RiskLevel.LOW);
 
         Merchant saved = repository.save(merchant);
@@ -111,17 +111,17 @@ public class MerchantService {
     }
 
     public MerchantStatsDTO getMerchantStats() {
-        long total = repository.count();
-        long active = repository.countByStatus(Status.ACTIVE);
-        long inactive = repository.countByStatus(Status.INACTIVE);
-        long pending = repository.countByStatus(Status.PENDING);
+        long total    = nz(repository.count());
+        long active   = nz(repository.countByStatus(Status.ACTIVE));
+        long inactive = nz(repository.countByStatus(Status.INACTIVE));
+        long pending  = nz(repository.countByStatus(Status.PENDING));
 
-        long low = repository.countByRiskLevel(RiskLevel.LOW);
-        long medium = repository.countByRiskLevel(RiskLevel.MEDIUM);
-        long high = repository.countByRiskLevel(RiskLevel.HIGH);
-        long critical = repository.countByRiskLevel(RiskLevel.CRITICAL);
+        long low      = nz(repository.countByRiskLevel(RiskLevel.LOW));
+        long medium   = nz(repository.countByRiskLevel(RiskLevel.MEDIUM));
+        long high     = nz(repository.countByRiskLevel(RiskLevel.HIGH));
+        long critical = nz(repository.countByRiskLevel(RiskLevel.CRITICAL));
 
-        long totalStores = storeRepository.count();
+        long totalStores = nz(storeRepository.count());
         long totalTerminals = 0L;
 
         log.info("Merchant stats: total={}, active={}, stores={}, terminals={}",
@@ -132,6 +132,10 @@ public class MerchantService {
                 low, medium, high, critical,
                 totalStores, totalTerminals
         );
+    }
+
+    private static long nz(Long value) {
+        return value == null ? 0L : value;
     }
 
     public MerchantResponseDTO update(Long merchantId, MerchantRequestDTO dto) {

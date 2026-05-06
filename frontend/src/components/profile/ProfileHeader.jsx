@@ -6,7 +6,7 @@ function ProfileHeader({ profile }) {
   if (!profile) return null;
 
   const roleConfig = getRoleConfig(profile.role);
-  const fullName   = [profile.firstName, profile.lastName].filter(Boolean).join(' ') || profile.username;
+  const fullName   = profile.name || profile.username;
   const initials   = fullName.split(' ').map(n => n[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
 
   return (

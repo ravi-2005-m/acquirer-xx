@@ -1,12 +1,5 @@
 import api from './axiosConfig';
 
-// ─── TODO: Stats endpoints currently fail (backend bugs) ────────
-// Stats/summary calls have suppressToast: true to hide the user-facing
-// red error toast. Pages handle the failure gracefully via try/catch
-// and show "—" placeholders. Remove this suppression once the backend
-// 500/404 errors are fixed.
-// ────────────────────────────────────────────────────────────────
-
 const pp = ({ page = 0, size = 15, sortBy = 'createdAt', sortDir = 'DESC' } = {}) => ({
   page, size, ...(sortBy && { sortBy }), sortDir,
 });

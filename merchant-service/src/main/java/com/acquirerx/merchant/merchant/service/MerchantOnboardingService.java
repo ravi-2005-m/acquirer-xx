@@ -1,5 +1,6 @@
 package com.acquirerx.merchant.merchant.service;
 
+import com.acquirerx.merchant.common.enums.Status;
 import com.acquirerx.merchant.common.exception.ResourceNotFoundException;
 import com.acquirerx.merchant.merchant.dto.MerchantKYCRequestDTO;
 import com.acquirerx.merchant.merchant.dto.MerchantKYCResponseDTO;
@@ -48,6 +49,12 @@ public class MerchantOnboardingService {
 
         MerchantKYC saved = kycRepository.save(kyc);
         log.info("KYC submitted: merchantId={}, type={}, ref={}", merchant.getMerchantId(), dto.getDocumentType(), dto.getDocumentRef());
+
+        if (merchant.getStatus() == Status.PENDING) {
+            merchantService.updateStatus(merchant.getMerchantId(), Status.ACTIVE);
+            log.info("Merchant activated after KYC submission: merchantId={}", merchant.getMerchantId());
+        }
+
         return toKYCResponse(saved);
     }
 

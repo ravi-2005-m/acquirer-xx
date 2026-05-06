@@ -59,7 +59,7 @@ export function mapError(err) {
 
   const data       = err?.response?.data;
   const code       = data?.errorCode || data?.code;
-  const backendMsg = data?.message;
+  const backendMsg = data?.message || data?.error;
   const status     = err?.response?.status;
 
   if (code && MESSAGES[code]) return MESSAGES[code];

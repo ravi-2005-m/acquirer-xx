@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { riskApi } from '../../api/riskApi';
+import { toBackendDateTime } from '../../utils/formatters';
 import RiskSummaryPanel from '../../components/risk/RiskSummaryPanel';
 import RiskCheckWidget from '../../components/risk/RiskCheckWidget';
 import EventFilters from '../../components/risk/EventFilters';
@@ -73,8 +74,8 @@ function RiskPage() {
         if (eventFilters.pan)        search.pan        = eventFilters.pan;
         if (eventFilters.merchantId) search.merchantId = eventFilters.merchantId;
         if (eventFilters.decision)   search.decision   = eventFilters.decision;
-        if (eventFilters.fromDate)   search.fromDate   = eventFilters.fromDate;
-        if (eventFilters.toDate)     search.toDate     = eventFilters.toDate;
+        if (eventFilters.fromDate)   search.fromDate   = toBackendDateTime(eventFilters.fromDate, false);
+        if (eventFilters.toDate)     search.toDate     = toBackendDateTime(eventFilters.toDate,   true);
         res = await riskApi.searchEvents(search, { page: eventPage, size: EVENT_PAGE_SIZE });
       } else {
         res = await riskApi.getEvents({ page: eventPage, size: EVENT_PAGE_SIZE });

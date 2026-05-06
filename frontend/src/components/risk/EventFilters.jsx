@@ -42,9 +42,9 @@ function EventFilters({ filters, onChange }) {
           <div className="col-12 col-sm-6 col-md-4">
             <label className="form-label small mb-1">Date Range</label>
             <DateRangePicker
-              from={filters.fromDate || ''}
-              to={filters.toDate || ''}
-              onChange={(from, to) => onChange({ ...filters, fromDate: from, toDate: to })}
+              fromDate={filters.fromDate || ''}
+              toDate={filters.toDate || ''}
+              onChange={({ fromDate, toDate }) => onChange({ ...filters, fromDate, toDate })}
             />
           </div>
           <div className="col-12 col-md-1">

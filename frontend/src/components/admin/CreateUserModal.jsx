@@ -7,6 +7,7 @@ import FormSelect from '../form/FormSelect';
 const ROLE_OPTIONS = [
   { value: 'ADMIN',        label: 'Admin' },
   { value: 'MERCHANT_OPS', label: 'Merchant Ops' },
+  { value: 'POS_OPS',      label: 'POS Ops' },
   { value: 'RISK',         label: 'Risk' },
   { value: 'DISPUTES',     label: 'Disputes' },
   { value: 'RECON',        label: 'Recon' },
@@ -20,7 +21,7 @@ export default function CreateUserModal({ show, onClose, onCreated }) {
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: zodResolver(createUserSchema),
-    defaultValues: { username: '', password: '', email: '', role: 'MERCHANT_OPS' },
+    defaultValues: { username: '', password: '', email: '', name: '', phone: '', role: 'MERCHANT_OPS' },
   });
 
   const onSubmit = async (data) => {
@@ -29,6 +30,8 @@ export default function CreateUserModal({ show, onClose, onCreated }) {
       password: data.password,
       role: data.role,
       ...(data.email && { email: data.email }),
+      ...(data.name  && { name:  data.name }),
+      ...(data.phone && { phone: data.phone }),
     };
     await onCreated(payload);
     reset();
@@ -77,6 +80,20 @@ export default function CreateUserModal({ show, onClose, onCreated }) {
                   error={errors.email?.message}
                   disabled={isSubmitting}
                   {...register('email')}
+                />
+                <FormInput
+                  id="cu-name"
+                  label="Name"
+                  error={errors.name?.message}
+                  disabled={isSubmitting}
+                  {...register('name')}
+                />
+                <FormInput
+                  id="cu-phone"
+                  label="Phone"
+                  error={errors.phone?.message}
+                  disabled={isSubmitting}
+                  {...register('phone')}
                 />
                 <FormSelect
                   id="cu-role"

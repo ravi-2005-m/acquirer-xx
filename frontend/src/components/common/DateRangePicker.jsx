@@ -9,7 +9,12 @@ const PRESETS = [
 
 function toInputValue(date) {
   if (!date) return '';
-  return new Date(date).toISOString().slice(0, 10);
+  // Defensive: ignore non-string/non-Date inputs (e.g. callers that
+  // accidentally pass an object) so a bad prop can't crash render.
+  if (typeof date !== 'string' && !(date instanceof Date)) return '';
+  const d = new Date(date);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toISOString().slice(0, 10);
 }
 
 function DateRangePicker({ fromDate, toDate, onChange, label = 'Date Range' }) {

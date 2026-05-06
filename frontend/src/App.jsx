@@ -69,10 +69,6 @@ import Forbidden from './pages/Forbidden';
 import UserManagementPage from './pages/admin/UserManagementPage';
 import UserDetailPage from './pages/admin/UserDetailPage';
 
-// Dev
-import ComponentsDemo from './pages/dev/ComponentsDemo';
-import CrashTest from './pages/dev/CrashTest';
-
 function App() {
   return (
     <ErrorBoundary>
@@ -118,10 +114,6 @@ function App() {
           <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/search" element={<SearchResultsPage />} />
-
-          {/* Dev demo */}
-          <Route path="/dev/components" element={<ComponentsDemo />} />
-          <Route path="/dev/crash-test" element={<CrashTest />} />
 
           {/* Admin-only nested under Layout */}
           <Route

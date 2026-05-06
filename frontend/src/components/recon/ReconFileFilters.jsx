@@ -39,7 +39,7 @@ function ReconFileFilters({ filters, onChange }) {
             <DateRangePicker
               fromDate={filters.fromDate}
               toDate={filters.toDate}
-              onChange={(from, to) => onChange({ ...filters, fromDate: from, toDate: to })}
+              onChange={({ fromDate, toDate }) => onChange({ ...filters, fromDate, toDate })}
             />
           </div>
 

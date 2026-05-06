@@ -13,7 +13,7 @@ import Pagination from '../../components/Pagination';
 import EntitySelect from '../../components/common/EntitySelect';
 import DateRangePicker from '../../components/common/DateRangePicker';
 import TransactionSummary from '../../components/transactions/TransactionSummary';
-import { formatDateTime, formatCurrency } from '../../utils/formatters';
+import { formatDateTime, formatCurrency, toBackendDateTime } from '../../utils/formatters';
 
 const fetchMerchantsOptions = ({ search }) =>
   (search
@@ -33,9 +33,13 @@ const fetchStoresOptions = (merchantId) => ({ search }) =>
     return { content: body.content ?? (Array.isArray(body) ? body : []) };
   });
 
-const fetchTerminalsOptions = (storeId, merchantId) => ({ search }) =>
+// Filtering by storeId already implies the merchant (a store belongs to
+// exactly one merchant), so we deliberately omit merchantId from the
+// terminal search payload. This keeps the dropdown working even when
+// older terminal records have merchantId = NULL in the database.
+const fetchTerminalsOptions = (storeId) => ({ search }) =>
   terminalApi.search(
-    { tid: search || undefined, storeId: storeId || undefined, merchantId: merchantId || undefined },
+    { tid: search || undefined, storeId: storeId || undefined },
     { size: 20 }
   ).then(res => {
     const body = res.data?.data ?? res.data ?? {};
@@ -81,8 +85,8 @@ function AuthList() {
     ...(merchantFilter && { merchantId: merchantFilter }),
     ...(storeFilter   && { storeId: storeFilter }),
     ...(terminalFilter && { terminalId: terminalFilter }),
-    ...(fromDate      && { fromDate }),
-    ...(toDate        && { toDate }),
+    ...(fromDate      && { fromDate: toBackendDateTime(fromDate, false) }),
+    ...(toDate        && { toDate:   toBackendDateTime(toDate,   true)  }),
   }), [searchTerm, statusFilter, txnTypeFilter, merchantFilter, storeFilter, terminalFilter, fromDate, toDate]);
 
   const fetchItems = useCallback(async () => {
@@ -187,7 +191,7 @@ function AuthList() {
               <EntitySelect
                 value={terminalFilter}
                 onChange={id => setTerminalFilter(id)}
-                fetchOptions={fetchTerminalsOptions(storeFilter, merchantFilter)}
+                fetchOptions={fetchTerminalsOptions(storeFilter)}
                 getOptionLabel={t => t.tid || String(t.terminalId)}
                 getOptionId={t => t.terminalId}
                 placeholder={storeFilter ? 'All terminals' : 'Select store first'}

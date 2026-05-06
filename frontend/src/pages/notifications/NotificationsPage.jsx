@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationContext';
 import { notificationApi } from '../../api/notificationApi';
+import { toBackendDateTime } from '../../utils/formatters';
 import NotificationStatsBar from '../../components/notifications/NotificationStatsBar';
 import NotificationFilters from '../../components/notifications/NotificationFilters';
 import NotificationItem from '../../components/notifications/NotificationItem';
@@ -40,8 +41,8 @@ function NotificationsPage() {
         if (filters.messageContains) body.messageContains = filters.messageContains;
         if (filters.category)        body.category        = filters.category;
         if (filters.status)          body.status          = filters.status;
-        if (filters.fromDate)        body.fromDate        = filters.fromDate;
-        if (filters.toDate)          body.toDate          = filters.toDate;
+        if (filters.fromDate)        body.fromDate        = toBackendDateTime(filters.fromDate, false);
+        if (filters.toDate)          body.toDate          = toBackendDateTime(filters.toDate,   true);
         body.userId = userId;
         res = await notificationApi.search(body, pagination);
       } else {

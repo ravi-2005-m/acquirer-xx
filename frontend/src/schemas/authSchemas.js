@@ -17,7 +17,13 @@ export const createUserSchema = z.object({
     .regex(/^[a-zA-Z0-9_]+$/, 'Only letters, numbers, and underscores allowed'),
   password: passwordRule,
   email: z.string().email('Enter a valid email address').optional().or(z.literal('')),
-  role: z.enum(['ADMIN', 'MERCHANT_OPS', 'RISK', 'DISPUTES', 'RECON'], {
+  name: z.string().max(100, 'Name cannot exceed 100 characters').optional().or(z.literal('')),
+  phone: z
+    .string()
+    .regex(/^$|^[+0-9 ()\-]{6,20}$/, 'Phone must be 6-20 digits')
+    .optional()
+    .or(z.literal('')),
+  role: z.enum(['ADMIN', 'MERCHANT_OPS', 'POS_OPS', 'RISK', 'DISPUTES', 'RECON'], {
     errorMap: () => ({ message: 'Pick a valid role' }),
   }),
 });

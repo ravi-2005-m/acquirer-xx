@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { settlementApi } from '../../api/settlementApi';
+import { toBackendDateTime } from '../../utils/formatters';
 import BatchFilters from '../../components/settlements/BatchFilters';
 import BatchTable from '../../components/settlements/BatchTable';
 import AdjustmentModal from '../../components/settlements/AdjustmentModal';
@@ -32,8 +33,8 @@ function SettlementPage() {
     if (filters.minNetAmount)  s.minNetAmount  = parseFloat(filters.minNetAmount);
     if (filters.maxNetAmount)  s.maxNetAmount  = parseFloat(filters.maxNetAmount);
     if (filters.minTxnCount)   s.minTxnCount   = parseInt(filters.minTxnCount, 10);
-    if (filters.fromDate)      s.fromDate      = filters.fromDate;
-    if (filters.toDate)        s.toDate        = filters.toDate;
+    if (filters.fromDate)      s.fromDate      = toBackendDateTime(filters.fromDate, false);
+    if (filters.toDate)        s.toDate        = toBackendDateTime(filters.toDate,   true);
     return s;
   }, [filters]);
 

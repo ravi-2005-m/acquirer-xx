@@ -1,7 +1,5 @@
 import { useNavigate } from 'react-router-dom';
 import StatusBadge from '../StatusBadge';
-import ReasonBadge from './ReasonBadge';
-import DeadlineCountdown from '../common/DeadlineCountdown';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 
 function DisputeTable({ disputes, loading }) {
@@ -30,39 +28,35 @@ function DisputeTable({ disputes, loading }) {
       <table className="table table-sm table-hover align-middle mb-0">
         <thead className="table-light">
           <tr>
-            <th>Dispute ID</th>
+            <th>Case ID</th>
             <th>Merchant</th>
-            <th>Txn Ref</th>
-            <th>Reason</th>
+            <th>Txn ID</th>
+            <th>Reason Code</th>
+            <th>Stage</th>
             <th className="text-end">Amount</th>
-            <th>Network</th>
             <th>Status</th>
             <th>Deadline</th>
-            <th>Raised</th>
+            <th>Opened</th>
           </tr>
         </thead>
         <tbody>
           {disputes.map(d => (
             <tr
-              key={d.disputeId ?? d.id}
-              onClick={() => navigate(`/disputes/${d.disputeId ?? d.id}`)}
+              key={d.caseId}
+              onClick={() => navigate(`/disputes/${d.caseId}`)}
               style={{ cursor: 'pointer' }}
             >
-              <td className="small font-monospace text-muted">{d.disputeId ?? d.id}</td>
-              <td className="small">{d.merchantName || d.merchantBusinessName || `#${d.merchantId}`}</td>
-              <td className="small font-monospace">{d.txnRef || d.transactionRef || '—'}</td>
-              <td><ReasonBadge reason={d.reason} /></td>
-              <td className="text-end small fw-semibold">{formatCurrency(d.disputeAmount ?? d.amount)}</td>
+              <td className="small font-monospace text-muted">{d.caseId}</td>
+              <td className="small">{d.merchantName || '—'}</td>
+              <td className="small font-monospace">{d.txnId ?? '—'}</td>
+              <td className="small font-monospace">{d.reasonCode || '—'}</td>
               <td>
-                {d.network && (
-                  <span className="badge bg-light text-dark border small">{d.network}</span>
-                )}
+                <span className="badge bg-light text-dark border small">{d.stage}</span>
               </td>
+              <td className="text-end small fw-semibold">{formatCurrency(d.txnAmount)}</td>
               <td><StatusBadge status={d.status} /></td>
-              <td>
-                <DeadlineCountdown deadline={d.responseDeadline ?? d.deadline} />
-              </td>
-              <td className="small text-muted">{formatDate(d.raisedAt ?? d.createdAt)}</td>
+              <td className="small">{d.deadline ? formatDate(d.deadline) : '—'}</td>
+              <td className="small text-muted">{formatDate(d.openedDate)}</td>
             </tr>
           ))}
         </tbody>

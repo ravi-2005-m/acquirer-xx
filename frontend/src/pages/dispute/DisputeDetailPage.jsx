@@ -5,27 +5,50 @@ import { useAuth } from '../../context/AuthContext';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import ErrorAlert from '../../components/ErrorAlert';
 import StatusBadge from '../../components/StatusBadge';
-import ReasonBadge from '../../components/disputes/ReasonBadge';
-import EvidenceList from '../../components/disputes/EvidenceList';
+import DocumentList from '../../components/disputes/EvidenceList';
 import DisputeActionPanel from '../../components/disputes/DisputeActionPanel';
-import DisputeStageTimeline from '../../components/common/DisputeStageTimeline';
-import DeadlineCountdown from '../../components/common/DeadlineCountdown';
-import FileUploader from '../../components/common/FileUploader';
-import { formatDate, formatDateTime, formatCurrency } from '../../utils/formatters';
+import { formatDateTime, formatCurrency } from '../../utils/formatters';
+
+const STAGES = ['RETRIEVAL', 'CHARGEBACK', 'REPRESENTMENT', 'ARBITRATION'];
+
+const DOC_TYPES = [
+  { value: 'RECEIPT',        label: 'Receipt' },
+  { value: 'INVOICE',        label: 'Invoice' },
+  { value: 'DELIVERY_PROOF', label: 'Delivery Proof' },
+  { value: 'COMMUNICATION',  label: 'Communication' },
+];
+
+function StageStrip({ currentStage }) {
+  const idx = STAGES.indexOf((currentStage || '').toUpperCase());
+  return (
+    <div className="d-flex gap-2 align-items-center flex-wrap">
+      {STAGES.map((s, i) => (
+        <div key={s} className="d-flex align-items-center">
+          <span className={`badge ${i <= idx ? 'bg-primary' : 'bg-light text-muted border'}`}>
+            {i + 1}. {s}
+          </span>
+          {i < STAGES.length - 1 && <span className="text-muted mx-1">›</span>}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function DisputeDetailPage() {
   const { id } = useParams();
   const { user } = useAuth();
   const canManage = user?.role === 'DISPUTES' || user?.role === 'ADMIN';
 
-  const [dispute, setDispute]     = useState(null);
-  const [evidence, setEvidence]   = useState([]);
-  const [stages, setStages]       = useState([]);
-  const [loading, setLoading]     = useState(true);
-  const [error, setError]         = useState(null);
-  const [uploading, setUploading] = useState(false);
-  const [deleting, setDeleting]   = useState(null);
-  const [uploadError, setUploadError] = useState(null);
+  const [dispute, setDispute]   = useState(null);
+  const [documents, setDocs]    = useState([]);
+  const [actions, setActions]   = useState([]);
+  const [loading, setLoading]   = useState(true);
+  const [error, setError]       = useState(null);
+
+  const [docType, setDocType] = useState('RECEIPT');
+  const [docUri, setDocUri]   = useState('');
+  const [linking, setLinking] = useState(false);
+  const [linkErr, setLinkErr] = useState(null);
 
   const fetchDispute = useCallback(async () => {
     setLoading(true);
@@ -40,62 +63,51 @@ function DisputeDetailPage() {
     }
   }, [id]);
 
-  const fetchEvidence = useCallback(async () => {
+  const fetchDocuments = useCallback(async () => {
     try {
-      const res = await disputeApi.getEvidence(id);
+      const res = await disputeApi.getDocuments(id);
       const data = res.data?.data ?? res.data ?? [];
-      setEvidence(Array.isArray(data) ? data : data.content ?? []);
+      setDocs(Array.isArray(data) ? data : []);
     } catch {
-      setEvidence([]);
+      setDocs([]);
     }
   }, [id]);
 
-  const fetchStages = useCallback(async () => {
+  const fetchActions = useCallback(async () => {
     try {
-      const res = await disputeApi.getStages(id);
+      const res = await disputeApi.getActions(id);
       const data = res.data?.data ?? res.data ?? [];
-      setStages(Array.isArray(data) ? data : []);
+      setActions(Array.isArray(data) ? data : []);
     } catch {
-      setStages([]);
+      setActions([]);
     }
   }, [id]);
 
   useEffect(() => {
     fetchDispute();
-    fetchEvidence();
-    fetchStages();
-  }, [fetchDispute, fetchEvidence, fetchStages]);
+    fetchDocuments();
+    fetchActions();
+  }, [fetchDispute, fetchDocuments, fetchActions]);
 
-  const handleUpload = async (file, description) => {
-    setUploading(true);
-    setUploadError(null);
+  const handleLink = async (e) => {
+    e.preventDefault();
+    if (!docUri.trim()) return;
+    setLinking(true);
+    setLinkErr(null);
     try {
-      await disputeApi.uploadEvidence(id, file, description);
-      fetchEvidence();
+      await disputeApi.addDocument({ caseId: Number(id), docType, uri: docUri.trim() });
+      setDocUri('');
+      fetchDocuments();
     } catch (err) {
-      const msg = err?.response?.data?.message || 'Upload failed';
-      setUploadError(msg);
-      throw err;
+      setLinkErr(err?.response?.data?.message || 'Failed to add document');
     } finally {
-      setUploading(false);
-    }
-  };
-
-  const handleDeleteEvidence = async (evidenceId) => {
-    setDeleting(evidenceId);
-    try {
-      await disputeApi.deleteEvidence(id, evidenceId);
-      setEvidence(prev => prev.filter(e => (e.evidenceId ?? e.id) !== evidenceId));
-    } catch {
-      // silently ignore — keep UI consistent
-    } finally {
-      setDeleting(null);
+      setLinking(false);
     }
   };
 
   const handleActionComplete = () => {
     fetchDispute();
-    fetchStages();
+    fetchActions();
   };
 
   if (loading) {
@@ -113,11 +125,10 @@ function DisputeDetailPage() {
     );
   }
 
-  const isTerminal = ['ACCEPTED', 'REJECTED', 'WON', 'LOST', 'RESOLVED', 'CLOSED'].includes(dispute.status);
+  const isClosed = (dispute.status || '').toUpperCase() === 'CLOSED';
 
   return (
     <div className="container-fluid p-4">
-      {/* Header */}
       <div className="d-flex align-items-start mb-3">
         <Link to="/disputes" className="btn btn-link text-muted text-decoration-none p-0 me-2 mt-1" title="Back">
           <i className="bi bi-arrow-left"></i>
@@ -125,48 +136,43 @@ function DisputeDetailPage() {
         <div className="flex-grow-1">
           <h3 className="mb-1">
             <i className="bi bi-chat-left-text me-2"></i>
-            Dispute — {dispute.disputeId ?? id}
+            Dispute — {dispute.caseId ?? id}
           </h3>
           <div className="d-flex flex-wrap gap-2 align-items-center text-muted small">
-            {dispute.merchantId && (
-              <Link to={`/merchants/${dispute.merchantId}`} className="text-decoration-none small">
-                <i className="bi bi-people me-1"></i>
-                {dispute.merchantName || `Merchant #${dispute.merchantId}`}
-              </Link>
+            {dispute.merchantName && (
+              <span><i className="bi bi-people me-1"></i>{dispute.merchantName}</span>
             )}
-            {dispute.txnRef && (
+            {dispute.txnId && (
               <>
                 <span>·</span>
-                <Link to={`/transactions/${dispute.transactionId ?? dispute.txnRef}`} className="text-decoration-none small font-monospace">
-                  {dispute.txnRef}
+                <Link to={`/transactions/${dispute.txnId}`} className="text-decoration-none small font-monospace">
+                  Txn #{dispute.txnId}
                 </Link>
               </>
             )}
-            {dispute.network && (
+            {dispute.panMasked && (
               <>
                 <span>·</span>
-                <span className="badge bg-light text-dark border">{dispute.network}</span>
+                <span className="font-monospace">{dispute.panMasked}</span>
               </>
             )}
           </div>
         </div>
         <div className="d-flex gap-2 ms-3 align-items-center flex-wrap">
           <StatusBadge status={dispute.status} />
-          {!isTerminal && <DeadlineCountdown deadline={dispute.responseDeadline ?? dispute.deadline} />}
         </div>
       </div>
 
-      {/* Stage timeline */}
+      {/* Stage strip */}
       <div className="card mb-4">
         <div className="card-body py-3">
-          <DisputeStageTimeline currentStatus={dispute.status} stages={stages} />
+          <StageStrip currentStage={dispute.stage} />
         </div>
       </div>
 
       <div className="row g-3">
-        {/* Left column: details + evidence */}
-        <div className={canManage && !isTerminal ? 'col-md-8' : 'col-md-12'}>
-          {/* Dispute details */}
+        <div className={canManage && !isClosed ? 'col-md-8' : 'col-md-12'}>
+          {/* Details */}
           <div className="card mb-3">
             <div className="card-header bg-white">
               <span className="fw-semibold small">
@@ -176,66 +182,103 @@ function DisputeDetailPage() {
             <div className="card-body">
               <div className="row g-3">
                 <div className="col-md-6">
-                  <InfoRow label="Reason">
-                    <ReasonBadge reason={dispute.reason} />
-                  </InfoRow>
-                  <InfoRow label="Dispute Amount" text={formatCurrency(dispute.disputeAmount ?? dispute.amount)} />
-                  <InfoRow label="Currency" text={dispute.currency || 'INR'} />
-                  <InfoRow label="Card Number" text={dispute.maskedPan || dispute.cardNumber || '—'} mono />
+                  <InfoRow label="Reason Code" text={dispute.reasonCode} mono />
+                  <InfoRow label="Stage"       text={dispute.stage} />
+                  <InfoRow label="Amount"      text={formatCurrency(dispute.txnAmount)} />
                 </div>
                 <div className="col-md-6">
-                  <InfoRow label="Raised"   text={formatDateTime(dispute.raisedAt ?? dispute.createdAt)} />
-                  <InfoRow label="Deadline" text={dispute.responseDeadline ? formatDateTime(dispute.responseDeadline) : '—'} />
-                  <InfoRow label="Resolved" text={dispute.resolvedAt ? formatDateTime(dispute.resolvedAt) : '—'} />
-                  {dispute.caseNumber && <InfoRow label="Case Number" text={dispute.caseNumber} mono />}
+                  <InfoRow label="Opened"   text={formatDateTime(dispute.openedDate)} />
+                  <InfoRow label="Deadline" text={dispute.deadline ? formatDateTime(dispute.deadline) : '—'} />
+                  <InfoRow label="Closed"   text={dispute.closedDate ? formatDateTime(dispute.closedDate) : '—'} />
                 </div>
               </div>
-              {dispute.description && (
-                <div className="mt-3 pt-3 border-top">
-                  <div className="text-muted small mb-1">Description</div>
-                  <div className="small">{dispute.description}</div>
-                </div>
+            </div>
+          </div>
+
+          {/* Documents */}
+          <div className="card mb-3">
+            <div className="card-header bg-white d-flex justify-content-between align-items-center">
+              <span className="fw-semibold small">
+                <i className="bi bi-paperclip me-2"></i>Documents ({documents.length})
+              </span>
+            </div>
+            <div className="card-body">
+              <DocumentList documents={documents} />
+
+              {canManage && !isClosed && (
+                <form onSubmit={handleLink} className="mt-3 pt-3 border-top">
+                  <div className="text-muted small mb-2 fw-semibold">Link a Document</div>
+                  {linkErr && (
+                    <div className="alert alert-danger small py-2 mb-2">
+                      <i className="bi bi-exclamation-triangle me-1"></i>{linkErr}
+                    </div>
+                  )}
+                  <div className="row g-2">
+                    <div className="col-md-3">
+                      <select
+                        className="form-select form-select-sm"
+                        value={docType}
+                        onChange={e => setDocType(e.target.value)}
+                        disabled={linking}
+                      >
+                        {DOC_TYPES.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
+                      </select>
+                    </div>
+                    <div className="col-md-7">
+                      <input
+                        type="url"
+                        className="form-control form-control-sm"
+                        placeholder="Document URI (https://...)"
+                        value={docUri}
+                        onChange={e => setDocUri(e.target.value)}
+                        required
+                        disabled={linking}
+                      />
+                    </div>
+                    <div className="col-md-2">
+                      <button type="submit" className="btn btn-primary btn-sm w-100" disabled={linking || !docUri.trim()}>
+                        {linking ? '…' : 'Link'}
+                      </button>
+                    </div>
+                  </div>
+                </form>
               )}
             </div>
           </div>
 
-          {/* Evidence */}
+          {/* Action history */}
           <div className="card">
-            <div className="card-header bg-white d-flex justify-content-between align-items-center">
+            <div className="card-header bg-white">
               <span className="fw-semibold small">
-                <i className="bi bi-paperclip me-2"></i>Evidence ({evidence.length})
+                <i className="bi bi-list-check me-2"></i>Action History ({actions.length})
               </span>
             </div>
             <div className="card-body">
-              <EvidenceList
-                evidence={evidence}
-                canDelete={canManage && !isTerminal}
-                onDelete={handleDeleteEvidence}
-                deleting={deleting}
-              />
-
-              {canManage && !isTerminal && (
-                <div className="mt-3 pt-3 border-top">
-                  <div className="text-muted small mb-2 fw-semibold">Upload Evidence</div>
-                  {uploadError && (
-                    <div className="alert alert-danger small py-2 mb-2">
-                      <i className="bi bi-exclamation-triangle me-1"></i>{uploadError}
-                    </div>
-                  )}
-                  <FileUploader
-                    onUpload={handleUpload}
-                    uploading={uploading}
-                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx"
-                    maxSizeMB={10}
-                  />
-                </div>
+              {actions.length === 0 ? (
+                <p className="text-muted small mb-0">No actions logged yet.</p>
+              ) : (
+                <ul className="list-group list-group-flush">
+                  {actions.map(a => (
+                    <li key={a.actionId} className="list-group-item px-0 py-2">
+                      <div className="d-flex justify-content-between align-items-start">
+                        <div>
+                          <span className="badge bg-light text-dark border me-2">{a.actionType}</span>
+                          {a.notes && <span className="small">{a.notes}</span>}
+                        </div>
+                        <span className="text-muted small">{formatDateTime(a.actionDate)}</span>
+                      </div>
+                      <div className="text-muted" style={{ fontSize: '0.72rem' }}>
+                        Actor #{a.actorId}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
               )}
             </div>
           </div>
         </div>
 
-        {/* Right column: action panel */}
-        {canManage && !isTerminal && (
+        {canManage && !isClosed && (
           <div className="col-md-4">
             <div className="card">
               <div className="card-header bg-white">
@@ -247,19 +290,6 @@ function DisputeDetailPage() {
                 <DisputeActionPanel dispute={dispute} onActionComplete={handleActionComplete} />
               </div>
             </div>
-
-            {/* Deadline reminder */}
-            {(dispute.responseDeadline ?? dispute.deadline) && (
-              <div className="card mt-3 border-warning">
-                <div className="card-body py-2 text-center">
-                  <div className="text-warning small fw-semibold mb-1">
-                    <i className="bi bi-alarm me-1"></i>Response Deadline
-                  </div>
-                  <div className="small">{formatDate(dispute.responseDeadline ?? dispute.deadline)}</div>
-                  <DeadlineCountdown deadline={dispute.responseDeadline ?? dispute.deadline} className="d-block mt-1" />
-                </div>
-              </div>
-            )}
           </div>
         )}
       </div>
@@ -267,11 +297,11 @@ function DisputeDetailPage() {
   );
 }
 
-function InfoRow({ label, text, mono = false, children }) {
+function InfoRow({ label, text, mono = false }) {
   return (
     <div className="d-flex justify-content-between small py-1 border-bottom">
       <span className="text-muted">{label}</span>
-      {children ?? <span className={mono ? 'font-monospace' : ''}>{text ?? '—'}</span>}
+      <span className={mono ? 'font-monospace' : ''}>{text ?? '—'}</span>
     </div>
   );
 }

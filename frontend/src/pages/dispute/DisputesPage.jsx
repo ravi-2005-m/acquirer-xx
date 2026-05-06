@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { disputeApi } from '../../api/disputeApi';
+import { toBackendDateTime } from '../../utils/formatters';
 import MetricCard from '../../components/common/MetricCard';
 import DisputeFilters from '../../components/disputes/DisputeFilters';
 import DisputeTable from '../../components/disputes/DisputeTable';
 import Pagination from '../../components/Pagination';
 
 const INIT_FILTERS = {
-  search: '', status: '', reason: '', network: '', merchantId: '', fromDate: '', toDate: '',
+  stage: '', status: '', reasonCode: '', merchantId: '', fromDate: '', toDate: '', deadlineExpired: false,
 };
 
 function DisputesPage() {
@@ -23,13 +24,13 @@ function DisputesPage() {
   const [summaryLoading, setSummaryLoading] = useState(true);
 
   const buildSearch = useCallback(() => ({
-    ...(filters.search     && { search: filters.search }),
-    ...(filters.status     && { status: filters.status }),
-    ...(filters.reason     && { reason: filters.reason }),
-    ...(filters.network    && { network: filters.network }),
-    ...(filters.merchantId && { merchantId: filters.merchantId }),
-    ...(filters.fromDate   && { fromDate: filters.fromDate }),
-    ...(filters.toDate     && { toDate: filters.toDate }),
+    ...(filters.stage           && { stage: filters.stage }),
+    ...(filters.status          && { status: filters.status }),
+    ...(filters.reasonCode      && { reasonCode: filters.reasonCode }),
+    ...(filters.merchantId      && { merchantId: filters.merchantId }),
+    ...(filters.fromDate        && { fromDate: toBackendDateTime(filters.fromDate, false) }),
+    ...(filters.toDate          && { toDate:   toBackendDateTime(filters.toDate,   true)  }),
+    ...(filters.deadlineExpired && { deadlineExpired: true }),
   }), [filters]);
 
   const fetchDisputes = useCallback(async () => {
@@ -95,7 +96,7 @@ function DisputesPage() {
         <div className="col-6 col-md-3">
           <MetricCard
             title="Open Disputes"
-            value={summary?.openCount ?? (loading ? null : disputes.filter(d => d.status === 'OPEN').length)}
+            value={summary?.openDisputes ?? (loading ? null : disputes.filter(d => d.status === 'OPEN').length)}
             format="number"
             icon="📋"
             color="danger"
@@ -104,18 +105,8 @@ function DisputesPage() {
         </div>
         <div className="col-6 col-md-3">
           <MetricCard
-            title="Total Dispute Amount"
-            value={summary?.totalAmount}
-            format="compact-currency"
-            icon="💸"
-            color="warning"
-            loading={summaryLoading}
-          />
-        </div>
-        <div className="col-6 col-md-3">
-          <MetricCard
-            title="Won"
-            value={summary?.wonCount}
+            title="Closed Disputes"
+            value={summary?.closedDisputes}
             format="number"
             icon="✅"
             color="success"
@@ -124,8 +115,18 @@ function DisputesPage() {
         </div>
         <div className="col-6 col-md-3">
           <MetricCard
+            title="Expired Deadlines"
+            value={summary?.expiredDeadlines}
+            format="number"
+            icon="⏰"
+            color="warning"
+            loading={summaryLoading}
+          />
+        </div>
+        <div className="col-6 col-md-3">
+          <MetricCard
             title="Total Disputes"
-            value={summary?.totalCount ?? totalElements}
+            value={summary?.totalDisputes ?? totalElements}
             format="number"
             icon="📦"
             color="primary"

@@ -174,8 +174,8 @@ function MerchantForm() {
         <div className="alert alert-info mb-3">
           <i className="bi bi-info-circle me-2"></i>
           <span className="small">
-            New merchants start in <strong>PENDING</strong> status. Once KYC is verified and
-            pricing is configured, they can be activated from the merchant detail page.
+            New merchants start in <strong>PENDING</strong> status and become <strong>ACTIVE</strong>
+            automatically once KYC documents are submitted.
           </span>
         </div>
 

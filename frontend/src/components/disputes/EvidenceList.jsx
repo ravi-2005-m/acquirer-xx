@@ -1,53 +1,44 @@
 import { formatDateTime } from '../../utils/formatters';
 
-const ICON_MAP = {
-  pdf:  'bi-file-earmark-pdf text-danger',
-  jpg:  'bi-file-earmark-image text-info',
-  jpeg: 'bi-file-earmark-image text-info',
-  png:  'bi-file-earmark-image text-info',
-  doc:  'bi-file-earmark-word text-primary',
-  docx: 'bi-file-earmark-word text-primary',
-  xls:  'bi-file-earmark-excel text-success',
-  xlsx: 'bi-file-earmark-excel text-success',
+const TYPE_ICON = {
+  RECEIPT:        'bi-receipt text-primary',
+  INVOICE:        'bi-file-earmark-text text-info',
+  DELIVERY_PROOF: 'bi-truck text-success',
+  COMMUNICATION:  'bi-chat-dots text-secondary',
 };
 
-function fileIcon(filename = '') {
-  const ext = filename.split('.').pop().toLowerCase();
-  return ICON_MAP[ext] ?? 'bi-file-earmark text-muted';
-}
+const TYPE_LABEL = {
+  RECEIPT:        'Receipt',
+  INVOICE:        'Invoice',
+  DELIVERY_PROOF: 'Delivery Proof',
+  COMMUNICATION:  'Communication',
+};
 
-function EvidenceList({ evidence = [], canDelete = false, onDelete, deleting = null }) {
-  if (evidence.length === 0) {
-    return <p className="text-muted small mb-0">No evidence uploaded yet.</p>;
+function DocumentList({ documents = [] }) {
+  if (documents.length === 0) {
+    return <p className="text-muted small mb-0">No documents linked yet.</p>;
   }
 
   return (
     <ul className="list-group list-group-flush">
-      {evidence.map(ev => (
-        <li key={ev.evidenceId ?? ev.id} className="list-group-item px-0 py-2">
+      {documents.map(doc => (
+        <li key={doc.docId} className="list-group-item px-0 py-2">
           <div className="d-flex align-items-start gap-2">
-            <i className={`bi ${fileIcon(ev.fileName ?? ev.filename)} fs-5 mt-1 flex-shrink-0`}></i>
+            <i className={`bi ${TYPE_ICON[doc.docType] || 'bi-file-earmark text-muted'} fs-5 mt-1 flex-shrink-0`}></i>
             <div className="flex-grow-1 min-width-0">
-              <div className="small fw-semibold text-truncate">{ev.fileName ?? ev.filename}</div>
-              {ev.description && <div className="text-muted small">{ev.description}</div>}
+              <div className="small fw-semibold">{TYPE_LABEL[doc.docType] || doc.docType}</div>
+              <a
+                href={doc.uri}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-truncate d-block small font-monospace text-decoration-none"
+              >
+                {doc.uri}
+              </a>
               <div className="text-muted" style={{ fontSize: '0.72rem' }}>
-                {ev.uploadedBy || 'system'} · {formatDateTime(ev.uploadedAt ?? ev.createdAt)}
-                {ev.fileSizeBytes && <> · {(ev.fileSizeBytes / 1024).toFixed(1)} KB</>}
+                Linked {formatDateTime(doc.uploadedDate)}
               </div>
             </div>
-            {canDelete && onDelete && (
-              <button
-                className="btn btn-sm btn-link text-danger p-0 flex-shrink-0"
-                onClick={() => onDelete(ev.evidenceId ?? ev.id)}
-                disabled={deleting === (ev.evidenceId ?? ev.id)}
-                title="Remove evidence"
-              >
-                {deleting === (ev.evidenceId ?? ev.id)
-                  ? <span className="spinner-border spinner-border-sm" role="status"></span>
-                  : <i className="bi bi-trash3"></i>
-                }
-              </button>
-            )}
           </div>
         </li>
       ))}
@@ -55,4 +46,4 @@ function EvidenceList({ evidence = [], canDelete = false, onDelete, deleting = n
   );
 }
 
-export default EvidenceList;
+export default DocumentList;

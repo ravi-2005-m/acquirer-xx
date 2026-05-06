@@ -24,7 +24,7 @@ function BatchFilters({ filters, onChange }) {
     onChange({ ...filters, merchantId: id });
   };
 
-  const handleDateChange = (from, to) => onChange({ ...filters, fromDate: from, toDate: to });
+  const handleDateChange = ({ fromDate, toDate }) => onChange({ ...filters, fromDate, toDate });
 
   const hasFilters = Object.entries(filters).some(([k, v]) => k !== 'page' && v !== '' && v != null);
 

@@ -8,9 +8,10 @@ function Register() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [fullName, setFullName] = useState('');
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState('OPERATOR');
+  const [role, setRole] = useState('MERCHANT_OPS');
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
@@ -22,7 +23,7 @@ function Register() {
     e.preventDefault();
     setValidated(true);
 
-    if (!username || !password || !email || !fullName) return;
+    if (!username || !password || !email || !name) return;
     if (!passwordsMatch) {
       setError('Passwords do not match.');
       return;
@@ -36,7 +37,14 @@ function Register() {
     setSubmitting(true);
 
     try {
-      await authApi.register({ username, password, fullName, email, role });
+      await authApi.register({
+        username,
+        password,
+        name,
+        email,
+        role,
+        ...(phone && { phone }),
+      });
       navigate('/login');
     } catch (err) {
       const message =
@@ -75,20 +83,37 @@ function Register() {
                 noValidate
                 className={validated ? 'was-validated' : ''}
               >
-                <div className="mb-3">
-                  <label htmlFor="fullName" className="form-label">
-                    Full Name
-                  </label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    id="fullName"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    required
-                    disabled={submitting}
-                  />
-                  <div className="invalid-feedback">Please enter your full name.</div>
+                <div className="row">
+                  <div className="col-md-6 mb-3">
+                    <label htmlFor="name" className="form-label">
+                      Full Name
+                    </label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      id="name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      required
+                      disabled={submitting}
+                    />
+                    <div className="invalid-feedback">Please enter your full name.</div>
+                  </div>
+
+                  <div className="col-md-6 mb-3">
+                    <label htmlFor="phone" className="form-label">
+                      Phone <span className="text-muted small">(optional)</span>
+                    </label>
+                    <input
+                      type="tel"
+                      className="form-control"
+                      id="phone"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      pattern="^[+0-9 ()\-]{6,20}$"
+                      disabled={submitting}
+                    />
+                  </div>
                 </div>
 
                 <div className="row">
@@ -183,8 +208,11 @@ function Register() {
                     onChange={(e) => setRole(e.target.value)}
                     disabled={submitting}
                   >
-                    <option value="OPERATOR">Operator</option>
-                    <option value="VIEWER">Viewer</option>
+                    <option value="MERCHANT_OPS">Merchant Ops</option>
+                    <option value="POS_OPS">POS Ops</option>
+                    <option value="RISK">Risk</option>
+                    <option value="DISPUTES">Disputes</option>
+                    <option value="RECON">Recon</option>
                     <option value="ADMIN">Admin</option>
                   </select>
                   <div className="form-text small">

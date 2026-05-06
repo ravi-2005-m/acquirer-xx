@@ -22,7 +22,11 @@ import java.util.Set;
 public class AuthService {
 
     private static final Set<String> SORTABLE_FIELDS = Set.of(
-            "userId", "username", "email", "role", "status", "createdAt"
+            "userId", "username", "email", "name", "role", "status", "createdAt"
+    );
+
+    private static final Set<String> ALLOWED_ROLES = Set.of(
+            "ADMIN", "RISK", "DISPUTES", "RECON", "MERCHANT_OPS", "POS_OPS"
     );
 
     private final UserRepository userRepository;
@@ -48,6 +52,8 @@ public class AuthService {
         user.setPassword(passwordEncoder.encode(dto.getPassword()));
         user.setRole(dto.getRole() != null ? dto.getRole() : "MERCHANT_OPS");
         user.setEmail(dto.getEmail());
+        user.setName(dto.getName());
+        user.setPhone(dto.getPhone());
 
         userRepository.save(user);
         auditService.logAction(
@@ -59,7 +65,7 @@ public class AuthService {
         );
         log.info("User registered: username={}, role={}", dto.getUsername(), dto.getRole());
 
-        String token = jwtUtil.generateToken(dto.getUsername(), user.getRole());
+        String token = jwtUtil.generateToken(dto.getUsername(), user.getRole(), user.getUserId());
         return new LoginResponseDTO(token, dto.getUsername(), user.getRole(),
                 "Registration successful");
     }
@@ -101,7 +107,7 @@ public class AuthService {
             throw new IllegalArgumentException("Invalid username or password");
         }
 
-        String token = jwtUtil.generateToken(user.getUsername(), user.getRole());
+        String token = jwtUtil.generateToken(user.getUsername(), user.getRole(), user.getUserId());
         auditService.logAction(
             user.getUsername(),
             "LOGIN_SUCCESS",
@@ -137,14 +143,26 @@ public class AuthService {
         return toUserResponse(user);
     }
 
-    public UserResponseDTO updateMyProfile(String username, String email) {
+    public UserResponseDTO updateMyProfile(String username, String email, String name, String phone) {
         User user = userRepository.findByUsername(username)
             .orElseThrow(() -> new ResourceNotFoundException("User not found: " + username));
+        boolean changed = false;
         if (email != null && !email.isBlank() && !email.equals(user.getEmail())) {
             if (userRepository.existsByEmail(email)) {
                 throw new IllegalArgumentException("Email already in use");
             }
             user.setEmail(email);
+            changed = true;
+        }
+        if (name != null && !name.equals(user.getName())) {
+            user.setName(name);
+            changed = true;
+        }
+        if (phone != null && !phone.equals(user.getPhone())) {
+            user.setPhone(phone);
+            changed = true;
+        }
+        if (changed) {
             userRepository.save(user);
         }
         return toUserResponse(user);
@@ -221,8 +239,14 @@ public class AuthService {
             throw new IllegalArgumentException("You cannot change your own role");
         }
 
+        String normalised = newRole == null ? "" : newRole.trim().toUpperCase();
+        if (!ALLOWED_ROLES.contains(normalised)) {
+            throw new IllegalArgumentException("Invalid role: " + newRole +
+                ". Allowed: " + ALLOWED_ROLES);
+        }
+
         String oldRole = user.getRole();
-        user.setRole(newRole.toUpperCase());
+        user.setRole(normalised);
         userRepository.save(user);
 
         auditService.logAction(
@@ -239,6 +263,8 @@ public class AuthService {
         dto.setUserId(user.getUserId());
         dto.setUsername(user.getUsername());
         dto.setEmail(user.getEmail());
+        dto.setName(user.getName());
+        dto.setPhone(user.getPhone());
         dto.setRole(user.getRole());
         dto.setStatus(user.getStatus() != null ? user.getStatus().toString() : "ACTIVE");
         dto.setCreatedAt(user.getCreatedAt());

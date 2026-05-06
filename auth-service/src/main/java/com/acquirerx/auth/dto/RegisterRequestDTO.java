@@ -20,10 +20,17 @@ public class RegisterRequestDTO {
     private String password;
 
     @NotBlank(message = "Role is required")
-    @Pattern(regexp = "^(ADMIN|RISK|DISPUTES|RECON|MERCHANT_OPS)$",
-        message = "Role must be ADMIN, RISK, DISPUTES, RECON, or MERCHANT_OPS")
+    @Pattern(regexp = "^(ADMIN|RISK|DISPUTES|RECON|MERCHANT_OPS|POS_OPS)$",
+        message = "Role must be ADMIN, RISK, DISPUTES, RECON, MERCHANT_OPS, or POS_OPS")
     private String role;
 
     @Email(message = "Email should be valid")
     private String email;
+
+    @Size(max = 100, message = "Name must be at most 100 characters")
+    private String name;
+
+    @Pattern(regexp = "^$|^[+0-9 ()\\-]{6,20}$",
+        message = "Phone must be 6-20 digits and may include +, spaces, parentheses, or dashes")
+    private String phone;
 }
