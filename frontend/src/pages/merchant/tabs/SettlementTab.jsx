@@ -1,17 +1,27 @@
 import { useState, useEffect, useCallback } from 'react';
 import { merchantApi } from '../../../api/merchantApi';
+import { transactionApi } from '../../../api/transactionApi';
+import { useAuth } from '../../../context/AuthContext';
+import { toast } from '../../../utils/toast';
 import LoadingSpinner from '../../../components/LoadingSpinner';
 import ErrorAlert from '../../../components/ErrorAlert';
 import EmptyState from '../../../components/EmptyState';
 import StatusBadge from '../../../components/StatusBadge';
+import ConfirmModal from '../../../components/ConfirmModal';
 import { formatDateTime } from '../../../utils/formatters';
 
 const CYCLES = ['DAILY', 'T_PLUS_1', 'T_PLUS_2', 'WEEKLY'];
 
 function SettlementTab({ merchantId }) {
+  const { user } = useAuth();
+  const canManage = user?.role === 'ADMIN' || user?.role === 'RECON';
+
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const [showMarkSettled, setShowMarkSettled] = useState(false);
+  const [markingSettled, setMarkingSettled]   = useState(false);
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -106,14 +116,36 @@ function SettlementTab({ merchantId }) {
     }
   };
 
+  const handleMarkAllSettled = async () => {
+    setMarkingSettled(true);
+    try {
+      await transactionApi.markMerchantSettled(merchantId);
+      toast.success('All transactions marked as settled');
+      setShowMarkSettled(false);
+    } catch {
+      // interceptor handles error toast
+    } finally {
+      setMarkingSettled(false);
+    }
+  };
+
   return (
     <div>
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h6 className="mb-0">Settlement Profiles</h6>
-        <button onClick={startCreate} className="btn btn-primary btn-sm">
-          <i className="bi bi-plus-circle me-1"></i>
-          Add Profile
-        </button>
+        <div className="d-flex gap-2">
+          {canManage && (
+            <button
+              className="btn btn-outline-warning btn-sm"
+              onClick={() => setShowMarkSettled(true)}
+            >
+              <i className="bi bi-check2-all me-1"></i>Mark All Settled
+            </button>
+          )}
+          <button onClick={startCreate} className="btn btn-primary btn-sm">
+            <i className="bi bi-plus-circle me-1"></i>Add Profile
+          </button>
+        </div>
       </div>
 
       {showForm && (
@@ -222,6 +254,25 @@ function SettlementTab({ merchantId }) {
           message="Configure how this merchant gets paid."
         />
       )}
+
+      <ConfirmModal
+        show={showMarkSettled}
+        onClose={() => setShowMarkSettled(false)}
+        onConfirm={handleMarkAllSettled}
+        title="Mark All Transactions Settled"
+        message={
+          <div>
+            <p>Mark <strong>all unsettled transactions</strong> for this merchant as settled?</p>
+            <p className="text-muted small mb-0">
+              This updates every pending transaction record to settled status. Use after a
+              successful settlement run or for manual reconciliation.
+            </p>
+          </div>
+        }
+        confirmLabel="Mark All Settled"
+        confirmVariant="warning"
+        loading={markingSettled}
+      />
 
       {!loading && !error && items.length > 0 && (
         <div className="table-responsive">

@@ -31,7 +31,6 @@ export function AuthProvider({ children }) {
     const newToken = payload?.token;
 
     if (!newToken) {
-      console.error('Login response (no token found):', response.data);
       throw new Error('No token received from server.');
     }
 

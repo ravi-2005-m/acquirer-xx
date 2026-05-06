@@ -4,7 +4,9 @@ import { settlementApi } from '../../api/settlementApi';
 import BatchFilters from '../../components/settlements/BatchFilters';
 import BatchTable from '../../components/settlements/BatchTable';
 import AdjustmentModal from '../../components/settlements/AdjustmentModal';
+import RunSettlementModal from '../../components/settlements/RunSettlementModal';
 import Pagination from '../../components/Pagination';
+import { toast } from '../../utils/toast';
 
 const INIT_FILTERS = {
   status: '', merchantId: '', minNetAmount: '', maxNetAmount: '', minTxnCount: '',
@@ -24,6 +26,7 @@ function SettlementPage() {
   const [totalElements, setTotalElements] = useState(0);
   const [loading, setLoading]           = useState(true);
   const [showAdjModal, setShowAdjModal] = useState(false);
+  const [showRunModal, setShowRunModal] = useState(false);
 
   const buildSearch = useCallback(() => {
     const s = {};
@@ -79,9 +82,14 @@ function SettlementPage() {
           <p className="text-muted small mb-0">Daily settlement batches and payout status</p>
         </div>
         {canManage && (
-          <button className="btn btn-outline-primary btn-sm" onClick={() => setShowAdjModal(true)}>
-            <i className="bi bi-plus me-1"></i>New Adjustment
-          </button>
+          <div className="d-flex gap-2">
+            <button className="btn btn-warning btn-sm" onClick={() => setShowRunModal(true)}>
+              <i className="bi bi-play-circle me-1"></i>Run Settlement
+            </button>
+            <button className="btn btn-outline-primary btn-sm" onClick={() => setShowAdjModal(true)}>
+              <i className="bi bi-plus me-1"></i>New Adjustment
+            </button>
+          </div>
         )}
       </div>
 
@@ -114,6 +122,16 @@ function SettlementPage() {
         show={showAdjModal}
         onClose={() => setShowAdjModal(false)}
         onSaved={() => { setShowAdjModal(false); fetchBatches(); }}
+      />
+
+      <RunSettlementModal
+        show={showRunModal}
+        onClose={() => setShowRunModal(false)}
+        onCompleted={(batch) => {
+          setShowRunModal(false);
+          toast.success(batch?.settleBatchId ? `Batch #${batch.settleBatchId} created` : 'Settlement run complete');
+          fetchBatches();
+        }}
       />
     </div>
   );

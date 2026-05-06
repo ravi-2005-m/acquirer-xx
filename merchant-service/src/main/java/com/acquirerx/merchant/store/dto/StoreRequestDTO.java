@@ -14,4 +14,14 @@ public class StoreRequestDTO {
     private String address;
 
     private String region;
+
+    private String city;
+
+    private String state;
+
+    private String pincode;
+
+    private String contactPerson;
+
+    private String contactPhone;
 }

@@ -35,6 +35,7 @@ import TerminalDetail from './pages/terminal/TerminalDetail';
 // Transaction
 import AuthList from './pages/transaction/AuthList';
 import AuthDetail from './pages/transaction/AuthDetail';
+import TransactionSimulator from './pages/transaction/TransactionSimulator';
 import SettledList from './pages/transaction/SettledList';
 import SettledDetail from './pages/transaction/SettledDetail';
 
@@ -68,6 +69,7 @@ import Forbidden from './pages/Forbidden';
 // Admin
 import UserManagementPage from './pages/admin/UserManagementPage';
 import UserDetailPage from './pages/admin/UserDetailPage';
+import FeeRulesPage from './pages/admin/FeeRulesPage';
 
 // Dev
 import ComponentsDemo from './pages/dev/ComponentsDemo';
@@ -103,6 +105,7 @@ function App() {
           <Route path="/terminals" element={<TerminalList />} />
           <Route path="/terminals/:id" element={<TerminalDetail />} />
           <Route path="/transactions" element={<AuthList />} />
+          <Route path="/transactions/new" element={<TransactionSimulator />} />
           <Route path="/transactions/settled" element={<SettledList />} />
           <Route path="/transactions/settled/:id" element={<SettledDetail />} />
           <Route path="/transactions/:id" element={<AuthDetail />} />
@@ -137,6 +140,14 @@ function App() {
             element={
               <RoleRoute requiredRole="ADMIN">
                 <UserDetailPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/admin/fee-rules"
+            element={
+              <RoleRoute requiredRole="ADMIN">
+                <FeeRulesPage />
               </RoleRoute>
             }
           />

@@ -61,6 +61,9 @@ export const transactionApi = {
 
   getTxnById: (txnId) => api.get(`/txns/${txnId}`),
 
+  getTxnByAuthId: (authId) =>
+    api.get(`/txns/by-auth/${authId}`, { suppressToast: true }),
+
   searchTxns: (filters, pagination = {}) =>
     api.post('/txns/search', filters, { params: txnPagination(pagination) }),
 

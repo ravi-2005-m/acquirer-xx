@@ -33,6 +33,11 @@ public class StoreService {
         store.setStoreName(dto.getStoreName());
         store.setAddress(dto.getAddress());
         store.setRegion(dto.getRegion());
+        store.setCity(dto.getCity());
+        store.setState(dto.getState());
+        store.setPincode(dto.getPincode());
+        store.setContactPerson(dto.getContactPerson());
+        store.setContactPhone(dto.getContactPhone());
         store.setMerchant(merchant);
         store.setStatus(Status.ACTIVE);
 
@@ -133,6 +138,11 @@ public class StoreService {
         store.setStoreName(dto.getStoreName());
         store.setAddress(dto.getAddress());
         store.setRegion(dto.getRegion());
+        store.setCity(dto.getCity());
+        store.setState(dto.getState());
+        store.setPincode(dto.getPincode());
+        store.setContactPerson(dto.getContactPerson());
+        store.setContactPhone(dto.getContactPhone());
         Store updated = storeRepository.save(store);
         log.info("Store updated: id={}", storeId);
         return toResponse(updated);
@@ -163,6 +173,11 @@ public class StoreService {
         response.setStoreName(store.getStoreName());
         response.setAddress(store.getAddress());
         response.setRegion(store.getRegion());
+        response.setCity(store.getCity());
+        response.setState(store.getState());
+        response.setPincode(store.getPincode());
+        response.setContactPerson(store.getContactPerson());
+        response.setContactPhone(store.getContactPhone());
         response.setStatus(store.getStatus() != null ? store.getStatus().name() : null);
         response.setCreatedAt(store.getCreatedAt());
 
