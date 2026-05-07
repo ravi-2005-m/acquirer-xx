@@ -250,7 +250,7 @@ function MerchantDetail() {
 
       <div className="card border-top-0 rounded-top-0">
         <div className="card-body">
-          {activeTab === 'kyc'        && <KycTab merchantId={merchant.merchantId} />}
+          {activeTab === 'kyc'        && <KycTab merchantId={merchant.merchantId} onMerchantChanged={fetchMerchant} />}
           {activeTab === 'pricing'    && <PricingTab merchantId={merchant.merchantId} />}
           {activeTab === 'settlement' && <SettlementTab merchantId={merchant.merchantId} />}
           {activeTab === 'stores'     && <StoresTab merchantId={merchant.merchantId} />}

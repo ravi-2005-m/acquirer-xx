@@ -21,7 +21,6 @@
     <description>Merchant Acquiring and POS Switch System — Parent POM</description>
 
     <modules>
-        <module>backend</module>
         <module>eureka-server</module>
         <module>api-gateway</module>
         <module>merchant-service</module>

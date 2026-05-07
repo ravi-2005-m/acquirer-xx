@@ -125,7 +125,7 @@ public class SwitchService {
                 .orElseThrow(() -> new IllegalStateException(
                         "No open batch for terminal. Please open batch first."));
 
-        // Step 3: Risk check via Feign
+        // Step 3: Risk check via Feign (fail-closed: BLOCK if unreachable)
         String riskResult = "ALLOW";
         int riskScore = 0;
         String riskReason = "All checks passed";
@@ -143,7 +143,10 @@ public class SwitchService {
                         ? riskData.get("reason").toString() : "All checks passed";
             }
         } catch (Exception e) {
-            log.warn("Risk service unavailable, defaulting to ALLOW: {}", e.getMessage());
+            log.error("Risk service unavailable, failing CLOSED: {}", e.getMessage());
+            riskResult = "BLOCK";
+            riskScore = 100;
+            riskReason = "Risk service unavailable - fail-closed BLOCK";
         }
 
         log.info("Risk check result: result={}, score={}, reason={}", riskResult, riskScore, riskReason);

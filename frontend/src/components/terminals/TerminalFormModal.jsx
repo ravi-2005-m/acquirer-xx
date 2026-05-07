@@ -50,7 +50,12 @@ function TerminalFormModal({ show, existing, defaultStoreId, onClose, onSaved })
     node.addEventListener('hidden.bs.modal', onHidden);
     return () => {
       node.removeEventListener('hidden.bs.modal', onHidden);
+      bsModalRef.current?.hide();
       bsModalRef.current?.dispose();
+      document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+      document.body.classList.remove('modal-open');
+      document.body.style.removeProperty('overflow');
+      document.body.style.removeProperty('padding-right');
     };
   }, []);
 

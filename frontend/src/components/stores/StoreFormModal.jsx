@@ -45,7 +45,14 @@ function StoreFormModal({ show, existing, defaultMerchantId, onClose, onSaved })
     node.addEventListener('hidden.bs.modal', onHidden);
     return () => {
       node.removeEventListener('hidden.bs.modal', onHidden);
+      bsModalRef.current?.hide();
       bsModalRef.current?.dispose();
+      // Defensive: Bootstrap dispose() can leave a backdrop / body lock under
+      // StrictMode or HMR. Clear them so the screen never freezes after refresh.
+      document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+      document.body.classList.remove('modal-open');
+      document.body.style.removeProperty('overflow');
+      document.body.style.removeProperty('padding-right');
     };
   }, []);
 
