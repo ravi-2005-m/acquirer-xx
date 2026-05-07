@@ -162,9 +162,9 @@ public class MerchantOnboardingService {
         model.setMerchant(merchant);
         model.setModelType(dto.getModelType());
         model.setMdrPct(dto.getMdrPct());
-        Double perTxnFee = dto.getPerTxnFee();
+        java.math.BigDecimal perTxnFee = dto.getPerTxnFee();
         if (perTxnFee == null) {
-            perTxnFee = Double.valueOf(0.0d);
+            perTxnFee = java.math.BigDecimal.ZERO;
         }
         model.setPerTxnFee(perTxnFee);
         model.setSchemeFeePassThrough(dto.getSchemeFeePassThrough() != null ? dto.getSchemeFeePassThrough() : "NO");

@@ -15,7 +15,7 @@ const DOC_TYPES = [
   'IDENTITY_PROOF',
 ];
 
-function KycTab({ merchantId }) {
+function KycTab({ merchantId, onMerchantChanged }) {
   const [docs, setDocs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -71,6 +71,9 @@ function KycTab({ merchantId }) {
       setShowForm(false);
       setFormData({ documentType: 'INCORPORATION_CERT', documentRef: '', notes: '' });
       fetchDocs();
+      // Backend auto-activates the merchant on first KYC submission — refresh
+      // the parent so the status badge flips PENDING → ACTIVE without reload.
+      if (onMerchantChanged) onMerchantChanged();
     } catch (err) {
       setSubmitError(err);
     } finally {

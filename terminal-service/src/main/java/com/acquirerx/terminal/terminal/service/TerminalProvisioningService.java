@@ -10,6 +10,7 @@ import com.acquirerx.terminal.terminal.entity.TerminalHealth;
 import com.acquirerx.terminal.terminal.repository.ParamProfileRepository;
 import com.acquirerx.terminal.terminal.repository.TerminalHealthRepository;
 import com.acquirerx.terminal.terminal.repository.TerminalRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -26,8 +27,19 @@ public class TerminalProvisioningService {
     private final TerminalRepository terminalRepository;
     private final ParamProfileRepository paramProfileRepository;
     private final TerminalHealthRepository healthRepository;
+    private static final ObjectMapper JSON = new ObjectMapper();
+
+    private void validateParamsJson(String paramsJson) {
+        if (paramsJson == null || paramsJson.isBlank()) return;
+        try {
+            JSON.readTree(paramsJson);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Parameters JSON is not valid JSON.");
+        }
+    }
 
     public ParamProfileResponseDTO createProfile(ParamProfileRequestDTO dto) {
+        validateParamsJson(dto.getParamsJson());
         if (paramProfileRepository.existsByName(dto.getName())) {
             throw new IllegalStateException("Profile with this name already exists: " + dto.getName());
         }
@@ -42,6 +54,7 @@ public class TerminalProvisioningService {
     }
 
     public ParamProfileResponseDTO updateProfile(Long profileId, ParamProfileRequestDTO dto) {
+        validateParamsJson(dto.getParamsJson());
         ParamProfile profile = paramProfileRepository.findById(profileId)
                 .orElseThrow(() -> new ResourceNotFoundException("Param profile not found: " + profileId));
 

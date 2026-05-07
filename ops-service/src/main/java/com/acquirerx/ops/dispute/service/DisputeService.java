@@ -50,7 +50,7 @@ public class DisputeService {
 
     public DisputeCaseResponseDTO openDispute(OpenDisputeRequestDTO dto) {
         Long txnId = dto.getTxnId();
-        Double txnAmount = null;
+        java.math.BigDecimal txnAmount = null;
         Long merchantId = null;
         String merchantName = null;
 
@@ -59,7 +59,7 @@ public class DisputeService {
             Map<String, Object> txnData = (Map<String, Object>) txnResp.get("data");
             if (txnData != null) {
                 txnAmount = txnData.get("amount") != null
-                        ? Double.parseDouble(txnData.get("amount").toString()) : null;
+                        ? new java.math.BigDecimal(txnData.get("amount").toString()) : null;
                 merchantId = txnData.get("merchantId") != null
                         ? Long.valueOf(txnData.get("merchantId").toString()) : null;
                 merchantName = txnData.get("merchantName") != null

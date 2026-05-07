@@ -20,18 +20,32 @@ public class PaginationParams {
     @Max(value = 100, message = "Page size cannot exceed 100")
     private Integer size = 20;
 
-    private String sortBy = "id";
+    private String sortBy;
 
     @Pattern(regexp = "^(asc|desc|ASC|DESC)$",
              message = "Sort direction must be 'asc' or 'desc'")
     private String sortDir = "desc";
 
     public Pageable toPageable() {
+        if (sortBy == null || sortBy.isBlank()) {
+            return PageRequest.of(page, size);
+        }
         Sort.Direction direction = Sort.Direction.fromString(sortDir);
         return PageRequest.of(page, size, Sort.by(direction, sortBy));
     }
 
     public void validateSortField(Set<String> allowedFields) {
+        if (sortBy == null || sortBy.isBlank()) {
+            return;
+        }
+        if ("id".equalsIgnoreCase(sortBy)) {
+            for (String f : allowedFields) {
+                if (f.endsWith("Id")) {
+                    sortBy = f;
+                    return;
+                }
+            }
+        }
         if (!allowedFields.contains(sortBy)) {
             throw new IllegalArgumentException(
                 "Cannot sort by '" + sortBy + "'. Allowed fields: " + allowedFields);
