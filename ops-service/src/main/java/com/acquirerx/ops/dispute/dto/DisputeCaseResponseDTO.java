@@ -2,6 +2,7 @@ package com.acquirerx.ops.dispute.dto;
 
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
@@ -15,7 +16,7 @@ public class DisputeCaseResponseDTO {
     private LocalDateTime closedDate;
     private LocalDateTime deadline;
     private Long txnId;
-    private Double txnAmount;
+    private BigDecimal txnAmount;
     private String merchantName;
     private String panMasked;
 }

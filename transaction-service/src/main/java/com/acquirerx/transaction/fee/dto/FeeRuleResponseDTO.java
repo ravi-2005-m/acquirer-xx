@@ -11,9 +11,9 @@ public class FeeRuleResponseDTO {
     private Long feeRuleId;
     private String cardType;
     private String transactionType;
-    private Double schemePercentage;
-    private Double interchangePercentage;
-    private Double acquirerMarkupPercentage;
+    private BigDecimal schemePercentage;
+    private BigDecimal interchangePercentage;
+    private BigDecimal acquirerMarkupPercentage;
 
     private String mccPattern;
     private String region;

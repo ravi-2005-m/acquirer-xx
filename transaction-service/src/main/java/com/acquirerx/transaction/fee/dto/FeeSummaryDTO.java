@@ -3,6 +3,8 @@ package com.acquirerx.transaction.fee.dto;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
+import java.math.BigDecimal;
+
 @Data
 @AllArgsConstructor
 public class FeeSummaryDTO {
@@ -14,11 +16,11 @@ public class FeeSummaryDTO {
     private Integer settledTxnCount;
     private Integer unsettledTxnCount;
 
-    private Double totalGrossAmount;
-    private Double totalSchemeFee;
-    private Double totalInterchangeFee;
-    private Double totalAcquirerMarkup;
-    private Double totalFees;
-    private Double totalNetAmount;
+    private BigDecimal totalGrossAmount;
+    private BigDecimal totalSchemeFee;
+    private BigDecimal totalInterchangeFee;
+    private BigDecimal totalAcquirerMarkup;
+    private BigDecimal totalFees;
+    private BigDecimal totalNetAmount;
     private Double averageFeePercentage;
 }

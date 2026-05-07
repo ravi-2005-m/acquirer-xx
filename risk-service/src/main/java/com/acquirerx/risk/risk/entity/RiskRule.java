@@ -1,11 +1,14 @@
 package com.acquirerx.risk.risk.entity;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.Data;
+
+import java.math.BigDecimal;
 
 @Entity
 @Data
@@ -20,7 +23,8 @@ public class RiskRule {
 
     private String expression;
 
-    private Double maxAmount;
+    @Column(precision = 15, scale = 4)
+    private BigDecimal maxAmount;
 
     private String severity;
 

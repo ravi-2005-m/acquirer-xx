@@ -3,6 +3,8 @@ package com.acquirerx.settlement.settlement.dto;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
+import java.math.BigDecimal;
+
 @Data
 @AllArgsConstructor
 public class SettlementStatsDTO {
@@ -10,7 +12,7 @@ public class SettlementStatsDTO {
     private long readyBatches;
     private long paidBatches;
     private long onHoldBatches;
-    private double totalGrossAmount;
-    private double totalNetAmount;
-    private double totalFees;
+    private BigDecimal totalGrossAmount;
+    private BigDecimal totalNetAmount;
+    private BigDecimal totalFees;
 }

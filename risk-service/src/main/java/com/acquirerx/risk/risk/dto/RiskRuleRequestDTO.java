@@ -1,11 +1,13 @@
 package com.acquirerx.risk.risk.dto;
 
-import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
+
+import java.math.BigDecimal;
 
 @Data
 public class RiskRuleRequestDTO {
@@ -17,8 +19,8 @@ public class RiskRuleRequestDTO {
     private String expression;
 
     @NotNull(message = "Max amount is required")
-    @Min(value = 1, message = "Max amount must be at least 1")
-    private Double maxAmount;
+    @DecimalMin(value = "1", message = "Max amount must be at least 1")
+    private BigDecimal maxAmount;
 
     @NotBlank(message = "Severity is required")
     @Pattern(regexp = "^(LOW|MEDIUM|HIGH|CRITICAL)$",

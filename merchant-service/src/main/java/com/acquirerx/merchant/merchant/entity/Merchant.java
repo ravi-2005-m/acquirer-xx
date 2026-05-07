@@ -1,7 +1,10 @@
 package com.acquirerx.merchant.merchant.entity;
 
+import java.time.LocalDateTime;
+
 import com.acquirerx.merchant.common.enums.RiskLevel;
 import com.acquirerx.merchant.common.enums.Status;
+
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -12,8 +15,6 @@ import jakarta.persistence.Index;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.Data;
-
-import java.time.LocalDateTime;
 
 @Entity
 @Data

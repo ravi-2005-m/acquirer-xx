@@ -17,6 +17,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -71,8 +72,9 @@ public class RiskService {
         String reason = "All checks passed";
 
         for (RiskRule rule : activeRules) {
-            if (amount > rule.getMaxAmount()) {
-                int score = calculateScore(amount, rule.getMaxAmount());
+            if (rule.getMaxAmount() != null
+                    && BigDecimal.valueOf(amount).compareTo(rule.getMaxAmount()) > 0) {
+                int score = calculateScore(amount, rule.getMaxAmount().doubleValue());
 
                 if (isMoreSevere(rule.getAction(), worstResult)) {
                     worstResult = rule.getAction();
@@ -94,11 +96,12 @@ public class RiskService {
         List<RiskRule> activeRules = riskRuleRepository.findByActiveTrue();
 
         for (RiskRule rule : activeRules) {
-            if (amount > rule.getMaxAmount()) {
+            if (rule.getMaxAmount() != null
+                    && BigDecimal.valueOf(amount).compareTo(rule.getMaxAmount()) > 0) {
                 RiskEvent event = new RiskEvent();
                 event.setTxnId(txnId);
                 event.setRule(rule);
-                event.setScore(calculateScore(amount, rule.getMaxAmount()));
+                event.setScore(calculateScore(amount, rule.getMaxAmount().doubleValue()));
                 event.setResult(rule.getAction());
                 riskEventRepository.save(event);
                 log.info("Risk event saved: txnId={}, rule={}, result={}",

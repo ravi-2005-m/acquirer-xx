@@ -1,6 +1,8 @@
 package com.acquirerx.transaction.switchmodule.dto;
 
-import jakarta.validation.constraints.Min;
+import java.math.BigDecimal;
+
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
@@ -14,8 +16,8 @@ public class RefundRequestDTO {
     private Long terminalId;
 
     @NotNull(message = "Refund amount is required")
-    @Min(value = 1, message = "Refund amount must be at least 1")
-    private Double amount;
+    @DecimalMin(value = "1", message = "Refund amount must be at least 1")
+    private BigDecimal amount;
 
     private String currency;
 }

@@ -40,8 +40,8 @@ public interface TxnRepository extends JpaRepository<Txn, Long> {
     Page<Txn> findByFiltersPaged(
             @Param("status") TxnStatus status,
             @Param("settled") Boolean settled,
-            @Param("minAmount") Double minAmount,
-            @Param("maxAmount") Double maxAmount,
+            @Param("minAmount") BigDecimal minAmount,
+            @Param("maxAmount") BigDecimal maxAmount,
             @Param("fromDate") LocalDateTime fromDate,
             @Param("toDate") LocalDateTime toDate,
             @Param("merchantId") Long merchantId,
@@ -73,8 +73,8 @@ public interface TxnRepository extends JpaRepository<Txn, Long> {
     Long countBySettled(boolean settled);
 
     @Query("SELECT COALESCE(SUM(t.amount), 0) FROM Txn t WHERE t.settled = true")
-    Double sumSettledAmount();
+    BigDecimal sumSettledAmount();
 
     @Query("SELECT COALESCE(SUM(t.totalFee), 0) FROM Txn t")
-    Double sumTotalFee();
+    BigDecimal sumTotalFee();
 }

@@ -2,6 +2,7 @@ package com.acquirerx.ops.reporting.dto;
 
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
@@ -11,9 +12,9 @@ public class ReportResponseDTO {
     private String scope;
     private Long scopeRefId;
     private Integer totalTxnCount;
-    private Double totalVolume;
-    private Double totalFees;
-    private Double totalNet;
+    private BigDecimal totalVolume;
+    private BigDecimal totalFees;
+    private BigDecimal totalNet;
     private Double chargebackRate;
     private Integer disputeCount;
     private Integer reconMismatchCount;

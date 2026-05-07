@@ -1,5 +1,6 @@
 package com.acquirerx.ops.reporting.entity;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -8,6 +9,7 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -24,9 +26,12 @@ public class AcquirerReport {
     private Long scopeRefId;
 
     private Integer totalTxnCount;
-    private Double totalVolume;
-    private Double totalFees;
-    private Double totalNet;
+    @Column(precision = 15, scale = 4)
+    private BigDecimal totalVolume;
+    @Column(precision = 15, scale = 4)
+    private BigDecimal totalFees;
+    @Column(precision = 15, scale = 4)
+    private BigDecimal totalNet;
     private Double chargebackRate;
     private Integer disputeCount;
     private Integer reconMismatchCount;

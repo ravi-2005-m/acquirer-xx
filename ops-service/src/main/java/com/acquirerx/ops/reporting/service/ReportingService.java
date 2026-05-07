@@ -17,6 +17,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -63,13 +65,13 @@ public class ReportingService {
         }
 
         int txnCount = txns.size();
-        double totalVolume = txns.stream()
-                .mapToDouble(t -> t.get("amount") == null ? 0.0 : Double.parseDouble(t.get("amount").toString()))
-                .sum();
-        double totalFees = txns.stream()
-                .mapToDouble(t -> t.get("totalFee") == null ? 0.0 : Double.parseDouble(t.get("totalFee").toString()))
-                .sum();
-        double totalNet = totalVolume - totalFees;
+        BigDecimal totalVolume = txns.stream()
+                .map(t -> t.get("amount") == null ? BigDecimal.ZERO : new BigDecimal(t.get("amount").toString()))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalFees = txns.stream()
+                .map(t -> t.get("totalFee") == null ? BigDecimal.ZERO : new BigDecimal(t.get("totalFee").toString()))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalNet = totalVolume.subtract(totalFees);
 
         int disputeCount = (int) disputeCaseRepository.findAll().stream()
                 .filter(d -> merchantId.equals(d.getMerchantId()))
@@ -85,9 +87,9 @@ public class ReportingService {
         report.setScope("MERCHANT");
         report.setScopeRefId(merchantId);
         report.setTotalTxnCount(txnCount);
-        report.setTotalVolume(round(totalVolume));
-        report.setTotalFees(round(totalFees));
-        report.setTotalNet(round(totalNet));
+        report.setTotalVolume(totalVolume.setScale(4, RoundingMode.HALF_UP));
+        report.setTotalFees(totalFees.setScale(4, RoundingMode.HALF_UP));
+        report.setTotalNet(totalNet.setScale(4, RoundingMode.HALF_UP));
         report.setChargebackRate(chargebackRate);
         report.setDisputeCount(disputeCount);
         report.setReconMismatchCount(reconMismatches);
@@ -112,13 +114,13 @@ public class ReportingService {
         }
 
         int txnCount = allTxns.size();
-        double totalVolume = allTxns.stream()
-                .mapToDouble(t -> t.get("amount") == null ? 0.0 : Double.parseDouble(t.get("amount").toString()))
-                .sum();
-        double totalFees = allTxns.stream()
-                .mapToDouble(t -> t.get("totalFee") == null ? 0.0 : Double.parseDouble(t.get("totalFee").toString()))
-                .sum();
-        double totalNet = totalVolume - totalFees;
+        BigDecimal totalVolume = allTxns.stream()
+                .map(t -> t.get("amount") == null ? BigDecimal.ZERO : new BigDecimal(t.get("amount").toString()))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalFees = allTxns.stream()
+                .map(t -> t.get("totalFee") == null ? BigDecimal.ZERO : new BigDecimal(t.get("totalFee").toString()))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalNet = totalVolume.subtract(totalFees);
 
         int disputeCount = disputeCaseRepository.findAll().size();
 
@@ -132,9 +134,9 @@ public class ReportingService {
         report.setScope("NETWORK");
         report.setScopeRefId(null);
         report.setTotalTxnCount(txnCount);
-        report.setTotalVolume(round(totalVolume));
-        report.setTotalFees(round(totalFees));
-        report.setTotalNet(round(totalNet));
+        report.setTotalVolume(totalVolume.setScale(4, RoundingMode.HALF_UP));
+        report.setTotalFees(totalFees.setScale(4, RoundingMode.HALF_UP));
+        report.setTotalNet(totalNet.setScale(4, RoundingMode.HALF_UP));
         report.setChargebackRate(chargebackRate);
         report.setDisputeCount(disputeCount);
         report.setReconMismatchCount(reconMismatches);
@@ -253,10 +255,6 @@ public class ReportingService {
         dto.setPeriodFrom(report.getPeriodFrom());
         dto.setPeriodTo(report.getPeriodTo());
         return dto;
-    }
-
-    private double round(double value) {
-        return Math.round(value * 100.0) / 100.0;
     }
 
     private long value(Long value) {

@@ -24,9 +24,12 @@ public class FeeRule {
 
     private String cardType;
     private String transactionType;
-    private Double schemePercentage;
-    private Double interchangePercentage;
-    private Double acquirerMarkupPercentage;
+    @Column(precision = 15, scale = 4)
+    private BigDecimal schemePercentage;
+    @Column(precision = 15, scale = 4)
+    private BigDecimal interchangePercentage;
+    @Column(precision = 15, scale = 4)
+    private BigDecimal acquirerMarkupPercentage;
     private String status;
 
     @Column(name = "mcc_pattern", length = 10)

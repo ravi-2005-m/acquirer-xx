@@ -1,11 +1,12 @@
 package com.acquirerx.merchant.merchant.dto;
 
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 public class PricingModelRequestDTO {
@@ -19,12 +20,12 @@ public class PricingModelRequestDTO {
     private String modelType;
 
     @NotNull(message = "MDR percentage is required")
-    @Min(value = 0, message = "MDR cannot be negative")
-    @Max(value = 100, message = "MDR cannot exceed 100%")
-    private Double mdrPct;
+    @DecimalMin(value = "0", message = "MDR cannot be negative")
+    @DecimalMax(value = "100", message = "MDR cannot exceed 100%")
+    private BigDecimal mdrPct;
 
-    @Min(value = 0, message = "Per-txn fee cannot be negative")
-    private Double perTxnFee;
+    @DecimalMin(value = "0", message = "Per-txn fee cannot be negative")
+    private BigDecimal perTxnFee;
 
     @Pattern(regexp = "^(YES|NO)$", message = "Scheme fee pass-through must be YES or NO")
     private String schemeFeePassThrough;
@@ -38,10 +39,10 @@ public class PricingModelRequestDTO {
     public void setMerchantId(Long merchantId) { this.merchantId = merchantId; }
     public String getModelType() { return modelType; }
     public void setModelType(String modelType) { this.modelType = modelType; }
-    public Double getMdrPct() { return mdrPct; }
-    public void setMdrPct(Double mdrPct) { this.mdrPct = mdrPct; }
-    public Double getPerTxnFee() { return perTxnFee; }
-    public void setPerTxnFee(Double perTxnFee) { this.perTxnFee = perTxnFee; }
+    public BigDecimal getMdrPct() { return mdrPct; }
+    public void setMdrPct(BigDecimal mdrPct) { this.mdrPct = mdrPct; }
+    public BigDecimal getPerTxnFee() { return perTxnFee; }
+    public void setPerTxnFee(BigDecimal perTxnFee) { this.perTxnFee = perTxnFee; }
     public String getSchemeFeePassThrough() { return schemeFeePassThrough; }
     public void setSchemeFeePassThrough(String schemeFeePassThrough) { this.schemeFeePassThrough = schemeFeePassThrough; }
     public LocalDate getEffectiveFrom() { return effectiveFrom; }

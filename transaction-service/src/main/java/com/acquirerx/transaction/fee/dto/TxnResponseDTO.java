@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 public class TxnResponseDTO {
 
     private Long txnId;
-    private Double amount;
+    private BigDecimal amount;
     private String currency;
     private BigDecimal schemeFee;
     private BigDecimal interchangeFee;

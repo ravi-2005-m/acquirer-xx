@@ -1,5 +1,6 @@
 package com.acquirerx.merchant.merchant.dto;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -9,8 +10,8 @@ public class PricingModelResponseDTO {
     private Long merchantId;
     private String merchantName;
     private String modelType;
-    private Double mdrPct;
-    private Double perTxnFee;
+    private BigDecimal mdrPct;
+    private BigDecimal perTxnFee;
     private String schemeFeePassThrough;
     private LocalDate effectiveFrom;
     private LocalDate effectiveTo;
@@ -25,10 +26,10 @@ public class PricingModelResponseDTO {
     public void setMerchantName(String merchantName) { this.merchantName = merchantName; }
     public String getModelType() { return modelType; }
     public void setModelType(String modelType) { this.modelType = modelType; }
-    public Double getMdrPct() { return mdrPct; }
-    public void setMdrPct(Double mdrPct) { this.mdrPct = mdrPct; }
-    public Double getPerTxnFee() { return perTxnFee; }
-    public void setPerTxnFee(Double perTxnFee) { this.perTxnFee = perTxnFee; }
+    public BigDecimal getMdrPct() { return mdrPct; }
+    public void setMdrPct(BigDecimal mdrPct) { this.mdrPct = mdrPct; }
+    public BigDecimal getPerTxnFee() { return perTxnFee; }
+    public void setPerTxnFee(BigDecimal perTxnFee) { this.perTxnFee = perTxnFee; }
     public String getSchemeFeePassThrough() { return schemeFeePassThrough; }
     public void setSchemeFeePassThrough(String schemeFeePassThrough) { this.schemeFeePassThrough = schemeFeePassThrough; }
     public LocalDate getEffectiveFrom() { return effectiveFrom; }

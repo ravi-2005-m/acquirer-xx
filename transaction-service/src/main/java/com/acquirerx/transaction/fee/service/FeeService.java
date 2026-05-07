@@ -139,7 +139,7 @@ public class FeeService {
             }
         }
 
-        FeeBreakdownDTO fees = calculateFees(BigDecimal.valueOf(auth.getAmount()), mcc, region, network);
+        FeeBreakdownDTO fees = calculateFees(auth.getAmount(), mcc, region, network);
 
         // Create Txn
         Txn txn = new Txn();
@@ -248,8 +248,8 @@ public class FeeService {
         return new FeeSummaryDTO(
                 merchantId, merchantName,
                 total, settled, unsettled,
-                totalAmount.doubleValue(), totalSchemeFee.doubleValue(), totalInterchangeFee.doubleValue(), totalAcquirerMarkup.doubleValue(),
-                totalFees.doubleValue(), totalNetAmount.doubleValue(), avgFeePercentage);
+                totalAmount, totalSchemeFee, totalInterchangeFee, totalAcquirerMarkup,
+                totalFees, totalNetAmount, avgFeePercentage);
     }
 
     public List<TxnResponseDTO> getUnsettledTxns(Long merchantId) {
@@ -270,11 +270,11 @@ public class FeeService {
         long total = txnRepo.count();
         long settled = txnRepo.countBySettled(true);
         long unsettled = txnRepo.countBySettled(false);
-        Double settledAmt = txnRepo.sumSettledAmount();
-        Double totalFees = txnRepo.sumTotalFee();
+        BigDecimal settledAmt = txnRepo.sumSettledAmount();
+        BigDecimal totalFees = txnRepo.sumTotalFee();
         return new TxnStatsDTO(total, settled, unsettled,
-                settledAmt != null ? settledAmt : 0.0,
-                totalFees != null ? totalFees : 0.0);
+                settledAmt != null ? settledAmt : BigDecimal.ZERO,
+                totalFees != null ? totalFees : BigDecimal.ZERO);
     }
 
     // MAPPERS
@@ -378,12 +378,12 @@ public class FeeService {
     private BigDecimal sumPercentageForField(BigDecimal amount, List<FeeRule> rules, String field) {
         return rules.stream()
                 .map(rule -> {
-                    Double pct = switch (field) {
+                    BigDecimal pct = switch (field) {
                         case "SCHEME" -> rule.getSchemePercentage();
                         case "INTERCHANGE" -> rule.getInterchangePercentage();
                         default -> rule.getAcquirerMarkupPercentage();
                     };
-                    return pct != null ? BigDecimal.valueOf(pct) : BigDecimal.ZERO;
+                    return pct != null ? pct : BigDecimal.ZERO;
                 })
                 .reduce(BigDecimal.ZERO, BigDecimal::add)
                 .multiply(amount)

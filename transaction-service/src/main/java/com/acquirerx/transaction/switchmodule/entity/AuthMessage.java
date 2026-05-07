@@ -1,5 +1,6 @@
 package com.acquirerx.transaction.switchmodule.entity;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 import com.acquirerx.transaction.switchmodule.enums.TxnStatus;
@@ -32,7 +33,8 @@ public class AuthMessage {
     @Column(name = "pan_masked", length = 19)
     private String panMasked;
     private String txnType;
-    private Double amount;
+    @Column(precision = 15, scale = 4)
+    private BigDecimal amount;
     private String currency;
     private String authCode;
     private String responseCode;

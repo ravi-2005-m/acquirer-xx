@@ -4,6 +4,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
+import java.math.BigDecimal;
+
 @Data
 public class AdjustmentRequestDTO {
 
@@ -13,7 +15,7 @@ public class AdjustmentRequestDTO {
     private Long txnId;
 
     @NotNull(message = "Amount is required")
-    private Double amount;
+    private BigDecimal amount;
 
     @NotBlank(message = "Reason is required")
     private String reason;

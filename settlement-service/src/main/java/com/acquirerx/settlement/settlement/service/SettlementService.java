@@ -24,6 +24,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -83,28 +85,28 @@ public class SettlementService {
             throw new IllegalStateException("No unsettled transactions found for merchant: " + merchantId);
         }
 
-        double grossAmount = 0;
-        double totalFees = 0;
+        BigDecimal grossAmount = BigDecimal.ZERO;
+        BigDecimal totalFees = BigDecimal.ZERO;
 
         for (Map<String, Object> txn : txnList) {
-            double amount = txn.get("amount") != null
-                    ? Double.parseDouble(txn.get("amount").toString()) : 0;
-            double fee = txn.get("totalFee") != null
-                    ? Double.parseDouble(txn.get("totalFee").toString()) : 0;
-            grossAmount += amount;
-            totalFees += fee;
+            BigDecimal amount = txn.get("amount") != null
+                    ? new BigDecimal(txn.get("amount").toString()) : BigDecimal.ZERO;
+            BigDecimal fee = txn.get("totalFee") != null
+                    ? new BigDecimal(txn.get("totalFee").toString()) : BigDecimal.ZERO;
+            grossAmount = grossAmount.add(amount);
+            totalFees = totalFees.add(fee);
         }
 
-        double netAmount = grossAmount - totalFees;
+        BigDecimal netAmount = grossAmount.subtract(totalFees);
 
         SettlementBatch batch = new SettlementBatch();
         batch.setMerchantId(merchantId);
         batch.setMerchantName(merchantName);
         batch.setPeriodStart(LocalDateTime.now().minusDays(1));
         batch.setPeriodEnd(LocalDateTime.now());
-        batch.setGrossAmount(Math.round(grossAmount * 100.0) / 100.0);
-        batch.setTotalFees(Math.round(totalFees * 100.0) / 100.0);
-        batch.setNetAmount(Math.round(netAmount * 100.0) / 100.0);
+        batch.setGrossAmount(grossAmount.setScale(4, RoundingMode.HALF_UP));
+        batch.setTotalFees(totalFees.setScale(4, RoundingMode.HALF_UP));
+        batch.setNetAmount(netAmount.setScale(4, RoundingMode.HALF_UP));
         batch.setTxnCount(txnList.size());
         batch.setStatus("PAID");
 
@@ -211,17 +213,17 @@ public class SettlementService {
         long ready = val(settlementBatchRepository.countByMerchantIdAndStatus(merchantId, "READY"));
         long onHold = val(settlementBatchRepository.countByMerchantIdAndStatus(merchantId, "ON_HOLD"));
 
-        double totalGross = dval(settlementBatchRepository.sumGrossByMerchant(merchantId));
-        double totalFees = dval(settlementBatchRepository.sumFeesByMerchant(merchantId));
-        double totalNet = dval(settlementBatchRepository.sumNetByMerchant(merchantId));
-        double pending = dval(settlementBatchRepository.sumPendingPayoutByMerchant(merchantId));
-        double totalAdj = dval(adjustmentRepository.sumAdjustmentsByMerchant(merchantId));
+        BigDecimal totalGross = bdval(settlementBatchRepository.sumGrossByMerchant(merchantId));
+        BigDecimal totalFees = bdval(settlementBatchRepository.sumFeesByMerchant(merchantId));
+        BigDecimal totalNet = bdval(settlementBatchRepository.sumNetByMerchant(merchantId));
+        BigDecimal pending = bdval(settlementBatchRepository.sumPendingPayoutByMerchant(merchantId));
+        BigDecimal totalAdj = bdval(adjustmentRepository.sumAdjustmentsByMerchant(merchantId));
 
         return new SettlementSummaryDTO(
                 merchantId, merchantName,
                 total, (int) paid, (int) ready, (int) onHold,
-                round(totalGross), round(totalFees), round(totalNet),
-                round(totalAdj), round(pending)
+                totalGross, totalFees, totalNet,
+                totalAdj, pending
         );
     }
 
@@ -247,8 +249,7 @@ public class SettlementService {
     }
 
     private long val(Long v) { return v != null ? v : 0L; }
-    private double dval(Double v) { return v != null ? v : 0.0; }
-    private double round(double v) { return Math.round(v * 100.0) / 100.0; }
+    private BigDecimal bdval(BigDecimal v) { return v != null ? v : BigDecimal.ZERO; }
 
     private SettlementBatchResponseDTO toSettlementResponse(SettlementBatch b) {
         SettlementBatchResponseDTO r = new SettlementBatchResponseDTO();
@@ -299,12 +300,12 @@ public class SettlementService {
         long ready = settlementBatchRepository.countByStatus("READY");
         long paid = settlementBatchRepository.countByStatus("PAID");
         long onHold = settlementBatchRepository.countByStatus("ON_HOLD");
-        Double gross = settlementBatchRepository.sumGrossAmount();
-        Double net = settlementBatchRepository.sumNetAmount();
-        Double fees = settlementBatchRepository.sumTotalFees();
+        BigDecimal gross = settlementBatchRepository.sumGrossAmount();
+        BigDecimal net = settlementBatchRepository.sumNetAmount();
+        BigDecimal fees = settlementBatchRepository.sumTotalFees();
         return new SettlementStatsDTO(total, ready, paid, onHold,
-                gross != null ? gross : 0.0,
-                net != null ? net : 0.0,
-                fees != null ? fees : 0.0);
+                gross != null ? gross : BigDecimal.ZERO,
+                net != null ? net : BigDecimal.ZERO,
+                fees != null ? fees : BigDecimal.ZERO);
     }
 }

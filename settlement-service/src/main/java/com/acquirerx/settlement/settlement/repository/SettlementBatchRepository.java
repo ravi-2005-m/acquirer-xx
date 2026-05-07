@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -29,24 +30,24 @@ public interface SettlementBatchRepository extends JpaRepository<SettlementBatch
     Page<SettlementBatch> findByFiltersPaged(
             @Param("status") String status,
             @Param("merchantId") Long merchantId,
-            @Param("minNetAmount") Double minNetAmount,
-            @Param("maxNetAmount") Double maxNetAmount,
+            @Param("minNetAmount") BigDecimal minNetAmount,
+            @Param("maxNetAmount") BigDecimal maxNetAmount,
             @Param("fromDate") LocalDateTime fromDate,
             @Param("toDate") LocalDateTime toDate,
             @Param("minTxnCount") Integer minTxnCount,
             Pageable pageable);
 
     @Query("SELECT SUM(s.grossAmount) FROM SettlementBatch s WHERE s.merchantId = :merchantId")
-    Double sumGrossByMerchant(@Param("merchantId") Long merchantId);
+    BigDecimal sumGrossByMerchant(@Param("merchantId") Long merchantId);
 
     @Query("SELECT SUM(s.totalFees) FROM SettlementBatch s WHERE s.merchantId = :merchantId")
-    Double sumFeesByMerchant(@Param("merchantId") Long merchantId);
+    BigDecimal sumFeesByMerchant(@Param("merchantId") Long merchantId);
 
     @Query("SELECT SUM(s.netAmount) FROM SettlementBatch s WHERE s.merchantId = :merchantId")
-    Double sumNetByMerchant(@Param("merchantId") Long merchantId);
+    BigDecimal sumNetByMerchant(@Param("merchantId") Long merchantId);
 
     @Query("SELECT SUM(s.netAmount) FROM SettlementBatch s WHERE s.merchantId = :merchantId AND s.status = 'READY'")
-    Double sumPendingPayoutByMerchant(@Param("merchantId") Long merchantId);
+    BigDecimal sumPendingPayoutByMerchant(@Param("merchantId") Long merchantId);
 
     @Query("SELECT COUNT(s) FROM SettlementBatch s WHERE s.merchantId = :merchantId AND s.status = :status")
     Long countByMerchantIdAndStatus(@Param("merchantId") Long merchantId, @Param("status") String status);
@@ -54,11 +55,11 @@ public interface SettlementBatchRepository extends JpaRepository<SettlementBatch
     Long countByStatus(String status);
 
     @Query("SELECT COALESCE(SUM(s.grossAmount), 0) FROM SettlementBatch s")
-    Double sumGrossAmount();
+    BigDecimal sumGrossAmount();
 
     @Query("SELECT COALESCE(SUM(s.netAmount), 0) FROM SettlementBatch s")
-    Double sumNetAmount();
+    BigDecimal sumNetAmount();
 
     @Query("SELECT COALESCE(SUM(s.totalFees), 0) FROM SettlementBatch s")
-    Double sumTotalFees();
+    BigDecimal sumTotalFees();
 }

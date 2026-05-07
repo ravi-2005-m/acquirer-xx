@@ -2,6 +2,8 @@ package com.acquirerx.transaction.switchmodule.dto;
 
 import com.acquirerx.transaction.common.validation.ValidationConstants;
 
+import java.math.BigDecimal;
+
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
@@ -21,7 +23,7 @@ public class AuthorizeRequestDTO {
     @NotNull(message = "Amount is required")
     @DecimalMin(value = "0.01", message = "Amount must be greater than 0")
     @Digits(integer = 15, fraction = 2, message = "Amount format is invalid")
-    private Double amount;
+    private BigDecimal amount;
 
     @NotBlank(message = "Currency is required")
     @Size(min = 3, max = 3, message = "Currency must be 3 characters (e.g. INR)")

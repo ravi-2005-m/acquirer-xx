@@ -23,13 +23,13 @@ public class FeeRuleRequestDTO {
     private String transactionType;
 
     @NotNull(message = "Scheme percentage is required")
-    private Double schemePercentage;
+    private BigDecimal schemePercentage;
 
     @NotNull(message = "Interchange percentage is required")
-    private Double interchangePercentage;
+    private BigDecimal interchangePercentage;
 
     @NotNull(message = "Acquirer markup percentage is required")
-    private Double acquirerMarkupPercentage;
+    private BigDecimal acquirerMarkupPercentage;
 
     @Size(max = 10)
     private String mccPattern;

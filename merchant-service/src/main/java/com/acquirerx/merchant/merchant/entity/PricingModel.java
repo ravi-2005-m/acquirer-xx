@@ -1,5 +1,6 @@
 package com.acquirerx.merchant.merchant.entity;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -10,6 +11,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -29,8 +31,10 @@ public class PricingModel {
     private Merchant merchant;
 
     private String modelType;
-    private Double mdrPct;
-    private Double perTxnFee;
+    @Column(precision = 15, scale = 4)
+    private BigDecimal mdrPct;
+    @Column(precision = 15, scale = 4)
+    private BigDecimal perTxnFee;
     private String schemeFeePassThrough;
     private LocalDate effectiveFrom;
     private LocalDate effectiveTo;
@@ -69,19 +73,19 @@ public class PricingModel {
         this.modelType = modelType;
     }
 
-    public Double getMdrPct() {
+    public BigDecimal getMdrPct() {
         return mdrPct;
     }
 
-    public void setMdrPct(Double mdrPct) {
+    public void setMdrPct(BigDecimal mdrPct) {
         this.mdrPct = mdrPct;
     }
 
-    public Double getPerTxnFee() {
+    public BigDecimal getPerTxnFee() {
         return perTxnFee;
     }
 
-    public void setPerTxnFee(Double perTxnFee) {
+    public void setPerTxnFee(BigDecimal perTxnFee) {
         this.perTxnFee = perTxnFee;
     }
 

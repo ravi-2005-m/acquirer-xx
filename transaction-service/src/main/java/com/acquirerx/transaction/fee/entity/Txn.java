@@ -41,7 +41,8 @@ public class Txn {
     @Column(name = "terminal_id")
     private Long terminalId;
 
-    private Double amount;
+    @Column(precision = 15, scale = 4)
+    private BigDecimal amount;
     private String currency;
 
     @Column(name = "scheme_fee", precision = 19, scale = 4)

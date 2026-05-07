@@ -9,6 +9,7 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -26,7 +27,8 @@ public class Adjustment {
     @Column(name = "txn_id")
     private Long txnId;
 
-    private Double amount;
+    @Column(precision = 15, scale = 4)
+    private BigDecimal amount;
     private String reason;
     private String type;
     private String status;

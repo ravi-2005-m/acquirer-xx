@@ -4,6 +4,7 @@ import { toBackendDateTime } from '../../utils/formatters';
 import MetricCard from '../../components/common/MetricCard';
 import DisputeFilters from '../../components/disputes/DisputeFilters';
 import DisputeTable from '../../components/disputes/DisputeTable';
+import OpenDisputeModal from '../../components/disputes/OpenDisputeModal';
 import Pagination from '../../components/Pagination';
 
 const INIT_FILTERS = {
@@ -22,6 +23,7 @@ function DisputesPage() {
 
   const [summary, setSummary]         = useState(null);
   const [summaryLoading, setSummaryLoading] = useState(true);
+  const [showOpenModal, setShowOpenModal] = useState(false);
 
   const buildSearch = useCallback(() => ({
     ...(filters.stage           && { stage: filters.stage }),
@@ -84,12 +86,24 @@ function DisputesPage() {
 
   return (
     <div className="container-fluid p-4">
-      <div className="mb-4">
-        <h3 className="mb-1">
-          <i className="bi bi-chat-left-text me-2"></i>Disputes
-        </h3>
-        <p className="text-muted small mb-0">Manage chargebacks and dispute resolution workflows</p>
+      <div className="d-flex justify-content-between align-items-start mb-4">
+        <div>
+          <h3 className="mb-1">
+            <i className="bi bi-chat-left-text me-2"></i>Disputes
+          </h3>
+          <p className="text-muted small mb-0">Manage chargebacks and dispute resolution workflows</p>
+        </div>
+        <button className="btn btn-primary btn-sm" onClick={() => setShowOpenModal(true)}>
+          <i className="bi bi-plus-circle me-1"></i>Open Dispute
+        </button>
       </div>
+
+      {showOpenModal && (
+        <OpenDisputeModal
+          onClose={() => setShowOpenModal(false)}
+          onCreated={() => { fetchDisputes(); fetchSummary(); }}
+        />
+      )}
 
       {/* Summary cards */}
       <div className="row g-3 mb-4">

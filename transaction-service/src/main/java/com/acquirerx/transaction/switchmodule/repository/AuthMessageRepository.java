@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -28,8 +29,8 @@ public interface AuthMessageRepository extends JpaRepository<AuthMessage, Long> 
     Page<AuthMessage> findByFiltersPaged(
             @Param("status") TxnStatus status,
             @Param("txnType") String txnType,
-            @Param("minAmount") Double minAmount,
-            @Param("maxAmount") Double maxAmount,
+            @Param("minAmount") BigDecimal minAmount,
+            @Param("maxAmount") BigDecimal maxAmount,
             @Param("fromDate") LocalDateTime fromDate,
             @Param("toDate") LocalDateTime toDate,
             @Param("merchantId") Long merchantId,
@@ -37,14 +38,14 @@ public interface AuthMessageRepository extends JpaRepository<AuthMessage, Long> 
             @Param("network") String network,
             Pageable pageable);
 
-    @Query("SELECT COALESCE(SUM(a.amount), 0.0) FROM AuthMessage a WHERE " +
+    @Query("SELECT COALESCE(SUM(a.amount), 0) FROM AuthMessage a WHERE " +
            "(:status IS NULL OR a.status = :status) AND " +
            "(:txnType IS NULL OR a.txnType = :txnType) AND " +
            "(:merchantId IS NULL OR a.merchantId = :merchantId) AND " +
            "(:terminalId IS NULL OR a.terminalId = :terminalId) AND " +
            "(:fromDate IS NULL OR a.txnTime >= :fromDate) AND " +
            "(:toDate IS NULL OR a.txnTime <= :toDate)")
-    Double sumAmountByFilters(
+    BigDecimal sumAmountByFilters(
             @Param("status") TxnStatus status,
             @Param("txnType") String txnType,
             @Param("merchantId") Long merchantId,

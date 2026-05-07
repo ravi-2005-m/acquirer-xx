@@ -4,6 +4,7 @@ import com.acquirerx.transaction.common.serialization.MaskedPanSerializer;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
@@ -11,7 +12,7 @@ public class AuthResponseDTO {
 
     private Long authId;
     private String txnType;
-    private Double amount;
+    private BigDecimal amount;
     private String currency;
     private String authCode;
     private String responseCode;

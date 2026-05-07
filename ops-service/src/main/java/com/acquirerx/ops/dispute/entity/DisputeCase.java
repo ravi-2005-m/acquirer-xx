@@ -14,6 +14,7 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -33,7 +34,8 @@ public class DisputeCase {
     private Long txnId;
 
     private Long merchantId;
-    private Double txnAmount;
+    @Column(precision = 15, scale = 4)
+    private BigDecimal txnAmount;
     private String merchantName;
 
     @Column(name = "pan_masked")

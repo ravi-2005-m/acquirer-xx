@@ -1,9 +1,11 @@
 package com.acquirerx.ops.reconciliation.dto;
 
-import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
+
+import java.math.BigDecimal;
 
 @Data
 public class ReconItemInputDTO {
@@ -12,8 +14,8 @@ public class ReconItemInputDTO {
     private String reference;
 
     @NotNull(message = "Amount is required")
-    @Min(value = 0, message = "Amount cannot be negative")
-    private Double amount;
+    @DecimalMin(value = "0", message = "Amount cannot be negative")
+    private BigDecimal amount;
 }
 
 

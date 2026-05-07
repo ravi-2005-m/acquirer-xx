@@ -19,6 +19,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -131,7 +132,7 @@ public class SwitchService {
 
         try {
             Map<String, Object> riskResp = riskClient.checkRisk(
-                    dto.getAmount(), dto.getPanMasked(), tid);
+                    dto.getAmount().doubleValue(), dto.getPanMasked(), tid);
             Map<String, Object> riskData = (Map<String, Object>) riskResp.get("data");
             if (riskData != null) {
                 riskResult = riskData.get("result") != null
@@ -169,7 +170,7 @@ public class SwitchService {
             auth.setRiskScore(riskScore);
             auth.setRiskReason(riskReason);
             log.warn("Transaction BLOCKED: amount={}, tid={}", dto.getAmount(), tid);
-        } else if (dto.getAmount() <= 50000) {
+        } else if (dto.getAmount().compareTo(new BigDecimal("50000")) <= 0) {
             auth.setStatus(TxnStatus.APPROVED);
             auth.setAuthCode("A" + System.currentTimeMillis());
             auth.setResponseCode("00");
@@ -236,7 +237,7 @@ public class SwitchService {
             throw new IllegalStateException("Cannot refund a non-approved transaction: " + dto.getOriginalAuthId());
         }
 
-        if (dto.getAmount() > original.getAmount()) {
+        if (dto.getAmount().compareTo(original.getAmount()) > 0) {
             throw new IllegalArgumentException(
                     "Refund amount (" + dto.getAmount() + ") cannot exceed original amount (" + original.getAmount() + ")");
         }
@@ -305,7 +306,7 @@ public class SwitchService {
             statusEnum = TxnStatus.valueOf(filter.getStatus().toUpperCase());
         }
 
-        Double total = authRepo.sumAmountByFilters(
+        BigDecimal total = authRepo.sumAmountByFilters(
                 statusEnum, filter.getTxnType(),
                 filter.getMerchantId(), filter.getTerminalId(),
                 filter.getFromDate(), filter.getToDate());
@@ -320,7 +321,7 @@ public class SwitchService {
             byType.put((String) row[0], (Long) row[1]);
         }
 
-        return new TransactionStatsDTO(total != null ? total : 0.0, byType);
+        return new TransactionStatsDTO(total != null ? total : BigDecimal.ZERO, byType);
     }
 
     // INTERNAL
