@@ -1,5 +1,11 @@
 package com.acquirerx.merchant.merchant.service;
 
+import java.util.Set;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+
 import com.acquirerx.merchant.common.dto.PagedResponseDTO;
 import com.acquirerx.merchant.common.enums.RiskLevel;
 import com.acquirerx.merchant.common.enums.Status;
@@ -12,13 +18,9 @@ import com.acquirerx.merchant.merchant.dto.MerchantStatsDTO;
 import com.acquirerx.merchant.merchant.entity.Merchant;
 import com.acquirerx.merchant.merchant.repository.MerchantRepository;
 import com.acquirerx.merchant.store.repository.StoreRepository;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Service;
-
-import java.util.Set;
 
 @Slf4j
 @Service

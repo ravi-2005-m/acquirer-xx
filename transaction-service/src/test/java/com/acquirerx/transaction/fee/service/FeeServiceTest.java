@@ -57,9 +57,9 @@ class FeeServiceTest {
         activeRule = new FeeRule();
         activeRule.setCardType("CREDIT_CARD");
         activeRule.setTransactionType("SALE");
-        activeRule.setSchemePercentage(1.0);
-        activeRule.setInterchangePercentage(1.5);
-        activeRule.setAcquirerMarkupPercentage(0.0);
+        activeRule.setSchemePercentage(new BigDecimal("1.0"));
+        activeRule.setInterchangePercentage(new BigDecimal("1.5"));
+        activeRule.setAcquirerMarkupPercentage(new BigDecimal("0.0"));
         activeRule.setStatus("ACTIVE");
     }
 
@@ -104,7 +104,7 @@ class FeeServiceTest {
         AuthMessage auth = new AuthMessage();
         auth.setAuthId(10L);
         auth.setStatus(TxnStatus.APPROVED);
-        auth.setAmount(1000.0);
+        auth.setAmount(new BigDecimal("1000.00"));
         auth.setCurrency("INR");
         auth.setMerchantId(1L);
         auth.setTerminalId(2L);

@@ -21,6 +21,8 @@ const fetchTerminalOptions = ({ search }) =>
 
 function TransactionSimulator() {
   const [result, setResult]       = useState(null);
+  const [txn, setTxn]             = useState(null);
+  const [txnError, setTxnError]   = useState(false);
   const [batchError, setBatchError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -35,7 +37,21 @@ function TransactionSimulator() {
     const idempotencyKey = `auth-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     try {
       const res = await transactionApi.authorize(data, idempotencyKey);
-      setResult(res.data?.data ?? res.data);
+      const auth = res.data?.data ?? res.data;
+      setResult(auth);
+
+      if (auth?.status === 'APPROVED' && (data.txnType ?? 'SALE') === 'SALE') {
+        try {
+          const txnRes = await transactionApi.createTxnFromAuth(
+            auth.authId,
+            `txn-${idempotencyKey}`
+          );
+          setTxn(txnRes.data?.data ?? txnRes.data);
+          setTxnError(false);
+        } catch {
+          setTxnError(true);
+        }
+      }
     } catch (err) {
       const msg = (err?.response?.data?.message || '').toLowerCase();
       if (msg.includes('batch')) {
@@ -62,10 +78,23 @@ function TransactionSimulator() {
           <div>
             <div className="fw-bold fs-5">{result.status}</div>
             <div className="small">
-              {approved ? 'Transaction authorized successfully' : 'Transaction was declined'}
+              {approved ? 'Transaction authorized and queued for settlement' : 'Transaction was declined'}
             </div>
           </div>
         </div>
+
+        {approved && txnError && (
+          <div className="alert alert-warning d-flex gap-2 align-items-start mb-4">
+            <i className="bi bi-exclamation-triangle-fill mt-1 flex-shrink-0"></i>
+            <div className="small">
+              <strong>Fee processing failed.</strong> The authorization was saved but the fee record
+              could not be created — this transaction will <strong>not appear in settlement</strong> until
+              the transaction service is reachable. Make sure the transaction-service is running, then
+              retry by going to{' '}
+              <strong>Transactions → Auth #{result.authId} → Convert to Txn</strong>.
+            </div>
+          </div>
+        )}
 
         <div className="row mb-4">
           <div className="col-md-6 mb-3">
@@ -110,13 +139,39 @@ function TransactionSimulator() {
               </div>
             </div>
           </div>
+
+          {txn && (
+            <div className="col-12">
+              <div className="card border-success">
+                <div className="card-body">
+                  <h6 className="text-success text-uppercase small fw-semibold mb-3">
+                    <i className="bi bi-receipt me-1"></i>Fee Breakdown (Txn #{txn.txnId})
+                  </h6>
+                  <dl className="row mb-0 small">
+                    <dt className="col-5 col-md-3 text-muted">Gross Amount</dt>
+                    <dd className="col-7 col-md-3">{formatCurrency(txn.amount, result.currency)}</dd>
+                    <dt className="col-5 col-md-3 text-muted">Scheme Fee</dt>
+                    <dd className="col-7 col-md-3">{formatCurrency(txn.schemeFee, result.currency)}</dd>
+                    <dt className="col-5 col-md-3 text-muted">Interchange Fee</dt>
+                    <dd className="col-7 col-md-3">{formatCurrency(txn.interchangeFee, result.currency)}</dd>
+                    <dt className="col-5 col-md-3 text-muted">Acquirer Markup</dt>
+                    <dd className="col-7 col-md-3">{formatCurrency(txn.acquirerMarkup, result.currency)}</dd>
+                    <dt className="col-5 col-md-3 text-muted">Total Fee</dt>
+                    <dd className="col-7 col-md-3 fw-semibold text-danger">{formatCurrency(txn.totalFee, result.currency)}</dd>
+                    <dt className="col-5 col-md-3 text-muted">Net to Merchant</dt>
+                    <dd className="col-7 col-md-3 fw-semibold text-success">{formatCurrency(txn.netMerchantAmount, result.currency)}</dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="d-flex gap-2">
           <Link to="/transactions" className="btn btn-outline-secondary">
             <i className="bi bi-list me-1"></i>View Transactions List
           </Link>
-          <button className="btn btn-primary" onClick={() => { setResult(null); reset(); setBatchError(''); }}>
+          <button className="btn btn-primary" onClick={() => { setResult(null); setTxn(null); setTxnError(false); reset(); setBatchError(''); }}>
             <i className="bi bi-plus-circle me-1"></i>Authorize Another
           </button>
         </div>
