@@ -10,12 +10,14 @@ import com.acquirerx.terminal.terminal.dto.TerminalRequestDTO;
 import com.acquirerx.terminal.terminal.dto.TerminalResponseDTO;
 import com.acquirerx.terminal.terminal.dto.TerminalStatsDTO;
 import com.acquirerx.terminal.terminal.entity.Terminal;
+import com.acquirerx.terminal.terminal.repository.TerminalHealthRepository;
 import com.acquirerx.terminal.terminal.repository.TerminalRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Map;
 import java.util.Set;
@@ -30,6 +32,7 @@ public class TerminalService {
     );
 
     private final TerminalRepository terminalRepository;
+    private final TerminalHealthRepository healthRepository;
     private final MerchantServiceClient merchantServiceClient;
 
     /**
@@ -182,8 +185,10 @@ public class TerminalService {
         return toResponse(updated);
     }
 
+    @Transactional
     public void delete(Long terminalId) {
         Terminal terminal = getEntityById(terminalId);
+        healthRepository.findByTerminal(terminal).ifPresent(healthRepository::delete);
         terminalRepository.delete(terminal);
         log.info("Terminal deleted: id={}", terminalId);
     }

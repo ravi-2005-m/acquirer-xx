@@ -58,7 +58,7 @@ function AddBlacklistModal({ show, onClose, onAdded }) {
                     value={form.type}
                     onChange={e => set('type', e.target.value)}
                   >
-                    {ENTRY_TYPES.map(t => <option key={t}>{t}</option>)}
+                    {ENTRY_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                   </select>
                 </div>
                 <div className="mb-3">

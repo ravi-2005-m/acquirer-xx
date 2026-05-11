@@ -3,26 +3,27 @@ package com.acquirerx.risk.risk.dto;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
+import java.math.BigDecimal;
+
 @Data
 @AllArgsConstructor
 public class RiskSummaryDTO {
 
-    private Long totalRiskEvents;
-    private Long totalBlocked;
-    private Long totalReviewed;
-    private Long totalAllowed;
+    // Today
+    private Long eventsToday;
+    private Long allowedToday;
+    private Long reviewedToday;
+    private Long blockedToday;
+    private BigDecimal blockedAmountToday;
 
-    private Long todayRiskEvents;
-    private Long todayBlocked;
-    private Long todayReviewed;
-
-    private Long activePanBlacklist;
-    private Long activeTerminalBlacklist;
-    private Long activeMerchantBlacklist;
-
-    private Long activeRules;
-    private Long blockRules;
-    private Long reviewRules;
-
+    // All-time
+    private Long totalEvents;
+    private Double allowRate;
+    private Double reviewRate;
     private Double blockRate;
+
+    // Configuration
+    private Long activeRules;
+    private Long inactiveRules;
+    private Long blacklistEntries;
 }

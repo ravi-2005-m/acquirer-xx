@@ -15,4 +15,6 @@ public interface RiskRuleRepository extends JpaRepository<RiskRule, Long> {
     List<RiskRule> findByActionAndActiveTrue(String action);
 
     Long countByActionAndActiveTrue(String action);
+
+    Long countByActiveTrue();
 }
