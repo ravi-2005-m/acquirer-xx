@@ -27,11 +27,11 @@ function CreateRuleModal({ show, onClose, onCreated }) {
     setError(null);
     try {
       const payload = {
-        name:       form.name,
-        expression: form.expression || null,
-        maxAmount:  form.maxAmount !== '' ? form.maxAmount : null,
-        severity:   form.severity,
-        action:     form.action,
+        name:          form.name,
+        conditionType: form.expression || null,
+        threshold:     form.maxAmount !== '' ? form.maxAmount : null,
+        severity:      form.severity,
+        action:        form.action,
       };
       await riskApi.createRule(payload);
       setForm(INITIAL);
