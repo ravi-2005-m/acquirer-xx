@@ -67,6 +67,22 @@ public class SettlementService {
             log.warn("Could not fetch merchant info: {}", e.getMessage());
         }
 
+        try {
+            Map<String, Object> openBatchResp = transactionClient.hasOpenBatches(merchantId);
+            Object dataVal = openBatchResp.get("data");
+            boolean hasOpen = dataVal instanceof Boolean
+                    ? (Boolean) dataVal
+                    : Boolean.parseBoolean(String.valueOf(dataVal));
+            if (hasOpen) {
+                throw new IllegalStateException(
+                        "Cannot run settlement: merchant has open terminal batches. Close all POS batches first.");
+            }
+        } catch (IllegalStateException e) {
+            throw e;
+        } catch (Exception e) {
+            log.warn("Could not check open batches for merchant {}: {}", merchantId, e.getMessage());
+        }
+
         Map<String, Object> txnResp;
         try {
             txnResp = transactionClient.getUnsettledTxns(merchantId);
@@ -85,19 +101,43 @@ public class SettlementService {
             throw new IllegalStateException("No unsettled transactions found for merchant: " + merchantId);
         }
 
-        BigDecimal grossAmount = BigDecimal.ZERO;
-        BigDecimal totalFees = BigDecimal.ZERO;
+        BigDecimal grossAmount    = BigDecimal.ZERO;
+        BigDecimal totalFees      = BigDecimal.ZERO;
+        BigDecimal schemeFees     = BigDecimal.ZERO;
+        BigDecimal interchangeFees = BigDecimal.ZERO;
+        BigDecimal acquirerMarkups = BigDecimal.ZERO;
 
-        for (Map<String, Object> txn : txnList) {
-            BigDecimal amount = txn.get("amount") != null
-                    ? new BigDecimal(txn.get("amount").toString()) : BigDecimal.ZERO;
-            BigDecimal fee = txn.get("totalFee") != null
-                    ? new BigDecimal(txn.get("totalFee").toString()) : BigDecimal.ZERO;
-            grossAmount = grossAmount.add(amount);
-            totalFees = totalFees.add(fee);
+        StringBuilder txnJson = new StringBuilder("[");
+        for (int i = 0; i < txnList.size(); i++) {
+            Map<String, Object> txn = txnList.get(i);
+            BigDecimal amount    = bd(txn.get("amount"));
+            BigDecimal fee       = bd(txn.get("totalFee"));
+            BigDecimal scheme    = bd(txn.get("schemeFee"));
+            BigDecimal interchange = bd(txn.get("interchangeFee"));
+            BigDecimal markup    = bd(txn.get("acquirerMarkup"));
+            grossAmount     = grossAmount.add(amount);
+            totalFees       = totalFees.add(fee);
+            schemeFees      = schemeFees.add(scheme);
+            interchangeFees = interchangeFees.add(interchange);
+            acquirerMarkups = acquirerMarkups.add(markup);
+            if (i > 0) txnJson.append(",");
+            txnJson.append("{\"txnId\":").append(txn.get("txnId"))
+                   .append(",\"amount\":").append(amount)
+                   .append(",\"schemeFee\":").append(scheme)
+                   .append(",\"interchangeFee\":").append(interchange)
+                   .append(",\"acquirerMarkup\":").append(markup)
+                   .append(",\"totalFee\":").append(fee)
+                   .append("}");
+        }
+        txnJson.append("]");
+
+        List<Adjustment> pendingAdjs = adjustmentRepository.findByMerchantIdAndStatus(merchantId, "APPLIED");
+        BigDecimal adjTotal = BigDecimal.ZERO;
+        for (Adjustment adj : pendingAdjs) {
+            adjTotal = adjTotal.add(adj.getAmount());
         }
 
-        BigDecimal netAmount = grossAmount.subtract(totalFees);
+        BigDecimal netAmount = grossAmount.subtract(totalFees).add(adjTotal);
 
         SettlementBatch batch = new SettlementBatch();
         batch.setMerchantId(merchantId);
@@ -106,11 +146,25 @@ public class SettlementService {
         batch.setPeriodEnd(LocalDateTime.now());
         batch.setGrossAmount(grossAmount.setScale(4, RoundingMode.HALF_UP));
         batch.setTotalFees(totalFees.setScale(4, RoundingMode.HALF_UP));
+        batch.setSchemeFees(schemeFees.setScale(4, RoundingMode.HALF_UP));
+        batch.setInterchangeFees(interchangeFees.setScale(4, RoundingMode.HALF_UP));
+        batch.setAcquirerMarkups(acquirerMarkups.setScale(4, RoundingMode.HALF_UP));
+        batch.setAdjustmentTotal(adjTotal.setScale(4, RoundingMode.HALF_UP));
         batch.setNetAmount(netAmount.setScale(4, RoundingMode.HALF_UP));
         batch.setTxnCount(txnList.size());
+        batch.setTxnSummary(txnJson.toString());
         batch.setStatus("PAID");
 
         SettlementBatch saved = settlementBatchRepository.save(batch);
+
+        for (Adjustment adj : pendingAdjs) {
+            adj.setStatus("SETTLED");
+            adj.setSettleBatchId(saved.getSettleBatchId());
+            adjustmentRepository.save(adj);
+        }
+        if (!pendingAdjs.isEmpty()) {
+            log.info("Applied {} adjustments totalling {} to batch {}", pendingAdjs.size(), adjTotal, saved.getSettleBatchId());
+        }
 
         Payout payout = new Payout();
         payout.setSettlementBatch(saved);
@@ -227,6 +281,11 @@ public class SettlementService {
         );
     }
 
+    public List<AdjustmentResponseDTO> getAdjustmentsByBatch(Long settleBatchId) {
+        return adjustmentRepository.findBySettleBatchId(settleBatchId)
+                .stream().map(this::toAdjustmentResponse).toList();
+    }
+
     public AdjustmentResponseDTO createAdjustment(AdjustmentRequestDTO dto) {
         Adjustment adj = new Adjustment();
         adj.setMerchantId(dto.getMerchantId());
@@ -250,6 +309,9 @@ public class SettlementService {
 
     private long val(Long v) { return v != null ? v : 0L; }
     private BigDecimal bdval(BigDecimal v) { return v != null ? v : BigDecimal.ZERO; }
+    private BigDecimal bd(Object o) {
+        return o != null ? new BigDecimal(o.toString()) : BigDecimal.ZERO;
+    }
 
     private SettlementBatchResponseDTO toSettlementResponse(SettlementBatch b) {
         SettlementBatchResponseDTO r = new SettlementBatchResponseDTO();
@@ -260,8 +322,13 @@ public class SettlementService {
         r.setPeriodEnd(b.getPeriodEnd());
         r.setGrossAmount(b.getGrossAmount());
         r.setTotalFees(b.getTotalFees());
+        r.setSchemeFees(b.getSchemeFees());
+        r.setInterchangeFees(b.getInterchangeFees());
+        r.setAcquirerMarkups(b.getAcquirerMarkups());
+        r.setAdjustmentTotal(b.getAdjustmentTotal());
         r.setNetAmount(b.getNetAmount());
         r.setTxnCount(b.getTxnCount());
+        r.setTxnSummary(b.getTxnSummary());
         r.setStatus(b.getStatus());
         r.setPostedDate(b.getPostedDate());
         return r;
@@ -287,6 +354,7 @@ public class SettlementService {
         r.setAdjustmentId(a.getAdjustmentId());
         r.setMerchantId(a.getMerchantId());
         r.setTxnId(a.getTxnId());
+        r.setSettleBatchId(a.getSettleBatchId());
         r.setAmount(a.getAmount());
         r.setReason(a.getReason());
         r.setType(a.getType());

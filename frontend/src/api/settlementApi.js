@@ -41,4 +41,5 @@ export const settlementApi = {
   createAdjustment:        (payload)              => api.post('/settlement/adjustments', payload),
   getMerchantAdjustments:  (merchantId, pagination) =>
     api.get(`/settlement/adjustments/merchant/${merchantId}`, { params: adjustmentPp(pagination) }),
+  getBatchAdjustments:     (settleBatchId)        => api.get(`/settlement/${settleBatchId}/adjustments`),
 };

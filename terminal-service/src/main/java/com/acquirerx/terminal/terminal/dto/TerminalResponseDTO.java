@@ -18,5 +18,6 @@ public class TerminalResponseDTO {
     private String merchantName;
     private Long paramProfileId;
     private String paramProfileName;
+    private String paramsJson;
     private LocalDateTime createdAt;
 }

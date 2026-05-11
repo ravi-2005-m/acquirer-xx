@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { settlementApi } from '../../api/settlementApi';
 import { merchantApi } from '../../api/merchantApi';
+import { transactionApi } from '../../api/transactionApi';
 import EntitySelect from '../common/EntitySelect';
 
 const fetchMerchantOptions = ({ search }) =>
@@ -16,17 +17,30 @@ function RunSettlementModal({ show, merchantId, merchantName, onClose, onComplet
   const [error, setError]           = useState(null);
   const [info, setInfo]             = useState(null);
   const [picked, setPicked]         = useState(null);
+  const [openBatchWarning, setOpenBatchWarning] = useState(false);
+
+  const resolvedId   = merchantId ?? picked?.merchantId ?? null;
+  const resolvedName = merchantName ?? picked?.legalName ?? picked?.businessName ?? null;
+
+  useEffect(() => {
+    if (!show || !resolvedId) { setOpenBatchWarning(false); return; }
+    transactionApi.hasOpenBatches(resolvedId)
+      .then(res => {
+        const data = res.data?.data ?? res.data ?? false;
+        setOpenBatchWarning(!!data);
+      })
+      .catch(() => setOpenBatchWarning(false));
+  }, [show, resolvedId]);
 
   if (!show) return null;
 
-  const needsPicker          = !merchantId;
-  const resolvedId           = merchantId ?? picked?.merchantId ?? null;
-  const resolvedName         = merchantName ?? picked?.legalName ?? picked?.businessName ?? null;
+  const needsPicker = !merchantId;
 
   const handleClose = () => {
     setPicked(null);
     setError(null);
     setInfo(null);
+    setOpenBatchWarning(false);
     onClose();
   };
 
@@ -45,14 +59,15 @@ function RunSettlementModal({ show, merchantId, merchantName, onClose, onComplet
       const data = err?.response?.data;
       const backendMsg = data?.message || data?.error || '';
 
-      // "No unsettled transactions" is an expected condition (everything is
-      // already settled) — show a friendly info alert, not a red error.
+      // "No unsettled transactions" is an expected condition — show info, not red error.
       if (/no unsettled transactions/i.test(backendMsg)) {
         const subject = resolvedName || `Merchant #${resolvedId}`;
         setInfo(
           `All transactions for ${subject} are already settled. ` +
           `Run a new transaction first to create another settlement batch.`
         );
+      } else if (/open terminal batch/i.test(backendMsg)) {
+        setError('Settlement blocked: close all open POS terminal batches first, then retry.');
       } else {
         setError(backendMsg || 'Failed to run settlement — please try again');
       }
@@ -85,6 +100,14 @@ function RunSettlementModal({ show, merchantId, merchantName, onClose, onComplet
                 <div className="alert alert-info small d-flex align-items-start gap-2">
                   <i className="bi bi-info-circle mt-1 flex-shrink-0"></i>
                   <span>{info}</span>
+                </div>
+              )}
+
+              {openBatchWarning && (
+                <div className="alert alert-warning small">
+                  <i className="bi bi-exclamation-triangle me-2"></i>
+                  <strong>Open terminal batch detected.</strong> This merchant has a POS batch still open.
+                  Close all terminal batches before running settlement, otherwise the settlement will be blocked.
                 </div>
               )}
 

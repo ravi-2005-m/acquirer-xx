@@ -347,6 +347,23 @@ function ProfileTab({ terminal, onRefresh }) {
 
                   <div className="row">
                     <div className="col-md-4 mb-3">
+                      <label htmlFor="pinRequiredAbove" className="form-label">
+                        PIN Required Above (₹)
+                      </label>
+                      <input
+                        type="number"
+                        id="pinRequiredAbove"
+                        className="form-control"
+                        value={form.pinRequiredAbove}
+                        onChange={(e) => setField('pinRequiredAbove', e.target.value)}
+                        disabled={creating}
+                        min="0"
+                        step="100"
+                      />
+                      <div className="form-text small">Transactions above this amount are declined without PIN</div>
+                    </div>
+
+                    <div className="col-md-4 mb-3">
                       <label htmlFor="idleTimeoutSec" className="form-label">
                         Idle Timeout (sec)
                       </label>
@@ -378,7 +395,9 @@ function ProfileTab({ terminal, onRefresh }) {
                       />
                       <div className="form-text small">24-hour format (e.g. 23 = 11 PM)</div>
                     </div>
+                  </div>
 
+                  <div className="row">
                     <div className="col-md-4 mb-3">
                       <label htmlFor="currency" className="form-label">Currency</label>
                       <input

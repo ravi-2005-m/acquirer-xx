@@ -11,6 +11,7 @@ public class AdjustmentResponseDTO {
     private Long adjustmentId;
     private Long merchantId;
     private Long txnId;
+    private Long settleBatchId;
     private BigDecimal amount;
     private String reason;
     private String type;

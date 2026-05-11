@@ -72,16 +72,13 @@ public class RiskService {
         String reason = "All checks passed";
 
         for (RiskRule rule : activeRules) {
-            if (rule.getMaxAmount() != null
-                    && BigDecimal.valueOf(amount).compareTo(rule.getMaxAmount()) > 0) {
-                int score = calculateScore(amount, rule.getMaxAmount().doubleValue());
-
+            boolean triggered = evaluateRule(rule, amount, panMasked);
+            if (triggered) {
+                int score = calculateScore(rule, amount);
                 if (isMoreSevere(rule.getAction(), worstResult)) {
                     worstResult = rule.getAction();
                     highestScore = score;
-                    reason = "Rule triggered: " + rule.getName()
-                            + " (amount " + amount
-                            + " exceeds limit " + rule.getMaxAmount() + ")";
+                    reason = buildReason(rule, amount);
                 }
             }
         }
@@ -96,12 +93,12 @@ public class RiskService {
         List<RiskRule> activeRules = riskRuleRepository.findByActiveTrue();
 
         for (RiskRule rule : activeRules) {
-            if (rule.getMaxAmount() != null
-                    && BigDecimal.valueOf(amount).compareTo(rule.getMaxAmount()) > 0) {
+            boolean triggered = evaluateRule(rule, amount, null);
+            if (triggered) {
                 RiskEvent event = new RiskEvent();
                 event.setTxnId(txnId);
                 event.setRule(rule);
-                event.setScore(calculateScore(amount, rule.getMaxAmount().doubleValue()));
+                event.setScore(calculateScore(rule, amount));
                 event.setResult(rule.getAction());
                 riskEventRepository.save(event);
                 log.info("Risk event saved: txnId={}, rule={}, result={}",
@@ -110,13 +107,54 @@ public class RiskService {
         }
     }
 
+    // ── RULE EVALUATOR ────────────────────────
+    private boolean evaluateRule(RiskRule rule, Double amount, String panMasked) {
+        String conditionType = rule.getExpression();
+        BigDecimal threshold  = rule.getMaxAmount();
+
+        if (conditionType == null) return false;
+
+        return switch (conditionType.toUpperCase()) {
+            case "AMOUNT_GT" ->
+                threshold != null && BigDecimal.valueOf(amount).compareTo(threshold) > 0;
+
+            case "AMOUNT_LT" ->
+                threshold != null && BigDecimal.valueOf(amount).compareTo(threshold) < 0;
+
+            case "BLACKLISTED_PAN" ->
+                panMasked != null &&
+                blacklistRepository.findByTypeAndValueAndActiveTrue(
+                    "PAN", MaskingUtil.maskPan(panMasked)).isPresent();
+
+            case "VELOCITY_COUNT" -> {
+                // Counts total risk events recorded — acts as a global volume guard.
+                // A full implementation would count per-PAN within a sliding window
+                // using transaction-service data not available here.
+                long eventCount = riskEventRepository.count();
+                yield threshold != null && eventCount > threshold.longValue();
+            }
+
+            // COUNTRY_BLOCK and MCC_BLOCK require country/MCC fields that are not
+            // passed to the risk-check endpoint — skip silently.
+            case "COUNTRY_BLOCK", "MCC_BLOCK" -> {
+                log.debug("Rule '{}' ({}) skipped — insufficient context data",
+                        rule.getName(), conditionType);
+                yield false;
+            }
+
+            default -> {
+                log.warn("Unknown conditionType '{}' on rule '{}'", conditionType, rule.getName());
+                yield false;
+            }
+        };
+    }
+
     // ── CREATE RULE ───────────────────────────
     public RiskRuleResponseDTO createRule(RiskRuleRequestDTO dto) {
         RiskRule rule = new RiskRule();
         rule.setName(dto.getName());
-        rule.setExpression(dto.getExpression());
-        rule.setMaxAmount(dto.getMaxAmount());
-        rule.setSeverity(dto.getSeverity());
+        rule.setExpression(dto.getConditionType());
+        rule.setMaxAmount(dto.getThreshold());
         rule.setAction(dto.getAction());
         rule.setActive(true);
 
@@ -236,9 +274,29 @@ public class RiskService {
     }
 
     // ── HELPERS ───────────────────────────────
-    private int calculateScore(double amount, double maxAmount) {
-        double ratio = amount / maxAmount;
-        return (int) Math.min(ratio * 50, 100);
+    private int calculateScore(RiskRule rule, double amount) {
+        String conditionType = rule.getExpression();
+        BigDecimal threshold  = rule.getMaxAmount();
+        if (conditionType == null || threshold == null || threshold.doubleValue() == 0) return 50;
+        double t = threshold.doubleValue();
+        return switch (conditionType.toUpperCase()) {
+            case "AMOUNT_GT" -> (int) Math.min((amount / t) * 50, 100);
+            case "AMOUNT_LT" -> (int) Math.min(((t - amount) / t) * 50, 100);
+            default -> 80;
+        };
+    }
+
+    private String buildReason(RiskRule rule, double amount) {
+        String conditionType = rule.getExpression();
+        BigDecimal threshold  = rule.getMaxAmount();
+        if (conditionType == null) return "Rule triggered: " + rule.getName();
+        return switch (conditionType.toUpperCase()) {
+            case "AMOUNT_GT" -> "Rule '" + rule.getName() + "': amount " + amount + " exceeds " + threshold;
+            case "AMOUNT_LT" -> "Rule '" + rule.getName() + "': amount " + amount + " is below " + threshold;
+            case "BLACKLISTED_PAN" -> "Rule '" + rule.getName() + "': PAN is blacklisted";
+            case "VELOCITY_COUNT" -> "Rule '" + rule.getName() + "': transaction velocity exceeded";
+            default -> "Rule triggered: " + rule.getName();
+        };
     }
 
     private boolean isMoreSevere(String a, String b) {

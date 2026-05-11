@@ -17,6 +17,7 @@ function SettlementBatchPage() {
 
   const [batch, setBatch]               = useState(location.state?.batch || null);
   const [payouts, setPayouts]           = useState([]);
+  const [adjustments, setAdjustments]   = useState([]);
   const [loading, setLoading]           = useState(!location.state?.batch);
   const [payoutsLoading, setPayoutsLoading] = useState(true);
   const [error, setError]               = useState(null);
@@ -34,6 +35,16 @@ function SettlementBatchPage() {
       setPayouts([]);
     } finally {
       setPayoutsLoading(false);
+    }
+  }, [id]);
+
+  const fetchAdjustments = useCallback(async () => {
+    try {
+      const res  = await settlementApi.getBatchAdjustments(id);
+      const data = res.data?.data ?? res.data ?? [];
+      setAdjustments(Array.isArray(data) ? data : []);
+    } catch {
+      setAdjustments([]);
     }
   }, [id]);
 
@@ -58,7 +69,8 @@ function SettlementBatchPage() {
   useEffect(() => {
     fetchBatch();
     fetchPayouts();
-  }, [fetchBatch, fetchPayouts]);
+    fetchAdjustments();
+  }, [fetchBatch, fetchPayouts, fetchAdjustments]);
 
   const handleTriggerPayout = async () => {
     setActionLoading(true);
@@ -143,22 +155,22 @@ function SettlementBatchPage() {
       {/* Summary cards */}
       <div className="row g-3 mb-4">
         <div className="col-6 col-md-3">
-          <SimpleMetric label="Transactions" value={formatNumber(batch.txnCount)}              icon="bi-receipt" />
+          <SimpleMetric label="Transactions" value={formatNumber(batch.txnCount)}   icon="bi-receipt" />
         </div>
         <div className="col-6 col-md-3">
-          <SimpleMetric label="Gross Amount" value={formatINR(batch.grossAmount)}              icon="bi-arrow-down-circle" color="text-primary" />
+          <SimpleMetric label="Gross Amount" value={formatINR(batch.grossAmount)}   icon="bi-arrow-down-circle" color="text-primary" />
         </div>
         <div className="col-6 col-md-3">
-          <SimpleMetric label="Total Fees"   value={formatINR(batch.totalFees)}               icon="bi-dash-circle"       color="text-warning" />
+          <SimpleMetric label="Total Fees"   value={formatINR(batch.totalFees)}     icon="bi-dash-circle"       color="text-warning" />
         </div>
         <div className="col-6 col-md-3">
-          <SimpleMetric label="Net Payout"   value={formatINR(batch.netAmount)}               icon="bi-arrow-up-circle"   color="text-success" />
+          <SimpleMetric label="Net Payout"   value={formatINR(batch.netAmount)}     icon="bi-arrow-up-circle"   color="text-success" />
         </div>
       </div>
 
-      {/* Batch details */}
+      {/* Batch details + Fee breakdown */}
       <div className="row g-3 mb-4">
-        <div className="col-md-6">
+        <div className="col-md-4">
           <div className="card h-100">
             <div className="card-body">
               <h6 className="card-title text-muted text-uppercase small fw-semibold mb-3">Batch Details</h6>
@@ -166,19 +178,112 @@ function SettlementBatchPage() {
               <InfoRow label="Status"    value={<StatusBadge status={batch.status} />} />
               <InfoRow label="Merchant"  value={batch.merchantName || `#${batch.merchantId}`} />
               <InfoRow label="Posted"    value={batch.postedDate ? formatDateTime(batch.postedDate) : '—'} />
+              <InfoRow label="Period"    value={`${formatDate(batch.periodStart)} → ${formatDate(batch.periodEnd)}`} />
             </div>
           </div>
         </div>
-        <div className="col-md-6">
+
+        <div className="col-md-4">
           <div className="card h-100">
             <div className="card-body">
-              <h6 className="card-title text-muted text-uppercase small fw-semibold mb-3">Settlement Period</h6>
-              <InfoRow label="Start" value={formatDate(batch.periodStart)} />
-              <InfoRow label="End"   value={formatDate(batch.periodEnd)} />
+              <h6 className="card-title text-muted text-uppercase small fw-semibold mb-3">Fee Breakdown</h6>
+              <InfoRow label="Gross Amount"     value={formatINR(batch.grossAmount)} />
+              <InfoRow label="Scheme Fee"       value={<span className="text-danger">− {formatINR(batch.schemeFees)}</span>} />
+              <InfoRow label="Interchange Fee"  value={<span className="text-danger">− {formatINR(batch.interchangeFees)}</span>} />
+              <InfoRow label="Acquirer Markup"  value={<span className="text-danger">− {formatINR(batch.acquirerMarkups)}</span>} />
+              {batch.adjustmentTotal != null && Number(batch.adjustmentTotal) !== 0 && (
+                <InfoRow
+                  label="Adjustments"
+                  value={
+                    <span className={Number(batch.adjustmentTotal) < 0 ? 'text-danger' : 'text-success'}>
+                      {Number(batch.adjustmentTotal) < 0 ? '− ' : '+ '}
+                      {formatINR(Math.abs(batch.adjustmentTotal))}
+                    </span>
+                  }
+                />
+              )}
+              <div className="border-top mt-2 pt-2 d-flex justify-content-between fw-semibold small">
+                <span>Net Payout</span>
+                <span className="text-success">{formatINR(batch.netAmount)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-md-4">
+          <div className="card h-100">
+            <div className="card-body">
+              <h6 className="card-title text-muted text-uppercase small fw-semibold mb-3">
+                <i className="bi bi-sliders me-1"></i>Adjustments Applied
+                {adjustments.length > 0 && (
+                  <span className="badge bg-secondary ms-2">{adjustments.length}</span>
+                )}
+              </h6>
+              {adjustments.length === 0 ? (
+                <p className="text-muted small mb-0">No adjustments applied to this batch.</p>
+              ) : (
+                adjustments.map(adj => (
+                  <div key={adj.adjustmentId} className="d-flex justify-content-between align-items-start small py-1 border-bottom">
+                    <div>
+                      <span className={`badge me-1 ${Number(adj.amount) < 0 ? 'bg-danger' : 'bg-success'}`}>
+                        {adj.type?.replace('_', ' ')}
+                      </span>
+                      <span className="text-muted">{adj.reason}</span>
+                    </div>
+                    <span className={`fw-semibold ms-2 text-nowrap ${Number(adj.amount) < 0 ? 'text-danger' : 'text-success'}`}>
+                      {Number(adj.amount) < 0 ? '−' : '+'} {formatINR(Math.abs(adj.amount))}
+                    </span>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
       </div>
+
+      {/* Transaction list */}
+      {batch.txnSummary && (() => {
+        let txns = [];
+        try { txns = JSON.parse(batch.txnSummary); } catch { txns = []; }
+        return txns.length > 0 ? (
+          <div className="card mb-4">
+            <div className="card-header bg-white">
+              <span className="fw-semibold small">
+                <i className="bi bi-receipt me-2"></i>Transactions in this Batch
+                <span className="badge bg-secondary ms-2">{txns.length}</span>
+              </span>
+            </div>
+            <div className="card-body p-0">
+              <table className="table table-sm table-hover mb-0">
+                <thead className="table-light">
+                  <tr>
+                    <th className="small">Txn ID</th>
+                    <th className="small text-end">Amount</th>
+                    <th className="small text-end">Scheme Fee</th>
+                    <th className="small text-end">Interchange</th>
+                    <th className="small text-end">Acquirer Markup</th>
+                    <th className="small text-end">Total Fee</th>
+                    <th className="small text-end">Net</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {txns.map(t => (
+                    <tr key={t.txnId}>
+                      <td className="small font-monospace">#{t.txnId}</td>
+                      <td className="small text-end">{formatINR(t.amount)}</td>
+                      <td className="small text-end text-muted">{formatINR(t.schemeFee)}</td>
+                      <td className="small text-end text-muted">{formatINR(t.interchangeFee)}</td>
+                      <td className="small text-end text-muted">{formatINR(t.acquirerMarkup)}</td>
+                      <td className="small text-end text-warning">{formatINR(t.totalFee)}</td>
+                      <td className="small text-end text-success fw-semibold">{formatINR(t.amount - t.totalFee)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : null;
+      })()}
 
       {/* Payouts */}
       <div className="card">

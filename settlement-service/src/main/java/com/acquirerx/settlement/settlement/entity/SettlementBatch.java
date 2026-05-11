@@ -37,8 +37,18 @@ public class SettlementBatch {
     @Column(precision = 15, scale = 4)
     private BigDecimal totalFees;
     @Column(precision = 15, scale = 4)
+    private BigDecimal schemeFees;
+    @Column(precision = 15, scale = 4)
+    private BigDecimal interchangeFees;
+    @Column(precision = 15, scale = 4)
+    private BigDecimal acquirerMarkups;
+    @Column(precision = 15, scale = 4)
+    private BigDecimal adjustmentTotal;
+    @Column(precision = 15, scale = 4)
     private BigDecimal netAmount;
     private Integer txnCount;
+    @Column(columnDefinition = "TEXT")
+    private String txnSummary;
     private LocalDateTime postedDate;
     private String status;
 

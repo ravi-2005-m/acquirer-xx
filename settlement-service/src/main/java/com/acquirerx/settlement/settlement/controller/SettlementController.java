@@ -74,6 +74,11 @@ public class SettlementController {
         return new ApiResponse<>("Payouts fetched", service.getPayoutsBySettlement(settleBatchId));
     }
 
+    @GetMapping("/{settleBatchId:\\d+}/adjustments")
+    public ApiResponse<List<AdjustmentResponseDTO>> getBatchAdjustments(@PathVariable Long settleBatchId) {
+        return new ApiResponse<>("Adjustments fetched", service.getAdjustmentsByBatch(settleBatchId));
+    }
+
     @GetMapping("/adjustments/merchant/{merchantId:\\d+}")
     public ApiResponse<PagedResponseDTO<AdjustmentResponseDTO>> getAdjustments(
             @PathVariable Long merchantId,

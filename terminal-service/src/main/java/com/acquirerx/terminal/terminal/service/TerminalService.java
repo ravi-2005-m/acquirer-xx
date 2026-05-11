@@ -91,7 +91,7 @@ public class TerminalService {
         Pageable pageable = pagination.toPageable();
 
         Page<Terminal> terminalPage = terminalRepository.findAll(pageable);
-        Page<TerminalResponseDTO> dtoPage = terminalPage.map(this::toResponse);
+        Page<TerminalResponseDTO> dtoPage = terminalPage.map(this::toResponseWithFeignLookup);
         return new PagedResponseDTO<>(dtoPage);
     }
 
@@ -215,6 +215,7 @@ public class TerminalService {
         if (terminal.getParamProfile() != null) {
             response.setParamProfileId(terminal.getParamProfile().getParamProfileId());
             response.setParamProfileName(terminal.getParamProfile().getName());
+            response.setParamsJson(terminal.getParamProfile().getParamsJson());
         }
 
         return response;

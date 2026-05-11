@@ -27,6 +27,9 @@ public class Adjustment {
     @Column(name = "txn_id")
     private Long txnId;
 
+    @Column(name = "settle_batch_id")
+    private Long settleBatchId;
+
     @Column(precision = 15, scale = 4)
     private BigDecimal amount;
     private String reason;

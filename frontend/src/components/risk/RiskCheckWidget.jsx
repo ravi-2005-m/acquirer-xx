@@ -21,8 +21,11 @@ function RiskCheckWidget() {
     setError(null);
     setResult(null);
     try {
-      const params = { ...form };
-      if (params.amount) params.amount = parseFloat(params.amount);
+      const params = {
+        amount:    parseFloat(form.amount),
+        panMasked: form.pan       || undefined,
+        tid:       form.terminalId || undefined,
+      };
       const res  = await riskApi.checkRisk(params);
       const body = res.data?.data ?? res.data ?? {};
       setResult(body);

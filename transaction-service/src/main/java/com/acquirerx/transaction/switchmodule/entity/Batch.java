@@ -25,6 +25,9 @@ public class Batch {
     @Column(name = "terminal_id")
     private Long terminalId;
 
+    @Column(name = "merchant_id")
+    private Long merchantId;
+
     @Enumerated(EnumType.STRING)
     private BatchStatus status;
 

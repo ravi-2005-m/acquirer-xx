@@ -24,6 +24,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -104,9 +105,9 @@ public class ReconciliationService {
                 createException(itemDto.getReference(), "MISSING_TXN");
                 unmatched++;
             } else {
-                Double systemAmount = matchedTxn.get("amount") != null
-                        ? Double.parseDouble(matchedTxn.get("amount").toString()) : 0.0;
-                if (!systemAmount.equals(itemDto.getAmount())) {
+                BigDecimal systemAmount = matchedTxn.get("amount") != null
+                        ? new BigDecimal(matchedTxn.get("amount").toString()) : BigDecimal.ZERO;
+                if (systemAmount.compareTo(itemDto.getAmount()) != 0) {
                     item.setMatchStatus("MISMATCHED");
                     item.setNotes("Amount mismatch: system=" + systemAmount
                             + ", external=" + itemDto.getAmount());

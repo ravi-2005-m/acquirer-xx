@@ -127,6 +127,11 @@ public class TransactionController {
         return new ApiResponse<>("Batches fetched", service.getBatchesByTerminal(terminalId));
     }
 
+    @GetMapping("/transactions/batch/merchant/{merchantId:\\d+}/has-open")
+    public ApiResponse<Boolean> hasOpenBatches(@PathVariable Long merchantId) {
+        return new ApiResponse<>("Open batch status checked", service.hasOpenBatchesForMerchant(merchantId));
+    }
+
     @PostMapping("/transactions/stats")
     public ApiResponse<TransactionStatsDTO> getStats(
             @RequestBody(required = false) TransactionFilterDTO filter) {

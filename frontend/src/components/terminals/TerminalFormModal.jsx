@@ -23,7 +23,7 @@ const fetchMerchantsOptions = ({ search }) =>
 
 const fetchStoresOptions = (merchantId) => ({ search }) =>
   storeApi.search(
-    { storeName: search || undefined, merchantId: merchantId || undefined },
+    { storeName: search || undefined, merchantId: merchantId ? Number(merchantId) : undefined },
     { size: 20 }
   ).then(res => {
     const body = res.data?.data ?? res.data ?? {};

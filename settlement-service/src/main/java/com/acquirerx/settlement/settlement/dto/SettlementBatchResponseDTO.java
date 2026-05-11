@@ -13,8 +13,13 @@ public class SettlementBatchResponseDTO {
     private String merchantName;
     private BigDecimal grossAmount;
     private BigDecimal totalFees;
+    private BigDecimal schemeFees;
+    private BigDecimal interchangeFees;
+    private BigDecimal acquirerMarkups;
+    private BigDecimal adjustmentTotal;
     private BigDecimal netAmount;
     private Integer txnCount;
+    private String txnSummary;
     private String status;
     private LocalDateTime periodStart;
     private LocalDateTime periodEnd;

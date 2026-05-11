@@ -65,8 +65,12 @@ public class SwitchService {
                             "Batch already open for terminal: " + termData.get("tid"));
                 });
 
+        Long batchMerchantId = termData.get("merchantId") != null
+                ? Long.valueOf(termData.get("merchantId").toString()) : null;
+
         Batch batch = new Batch();
         batch.setTerminalId(terminalId);
+        batch.setMerchantId(batchMerchantId);
         batch.setStatus(BatchStatus.OPEN);
         batch.setOpenTime(LocalDateTime.now());
 
@@ -164,6 +168,61 @@ public class SwitchService {
         auth.setPanMasked(MaskingUtil.maskPan(dto.getPanMasked()));
         auth.setMerchantMcc(merchantMcc);
         auth.setMerchantRegion(merchantRegion);
+
+        // Step 4b: Enforce param profile limits (currency, PIN threshold, contactless limit)
+        String paramsJsonStr = termData.get("paramsJson") != null ? termData.get("paramsJson").toString() : null;
+        if (paramsJsonStr != null && !paramsJsonStr.isBlank()) {
+            try {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> params = new com.fasterxml.jackson.databind.ObjectMapper()
+                        .readValue(paramsJsonStr, Map.class);
+                String declineCode = null;
+                String declineReason = null;
+
+                Object profileCurrency = params.get("currency");
+                if (profileCurrency != null && dto.getCurrency() != null
+                        && !profileCurrency.toString().equalsIgnoreCase(dto.getCurrency())) {
+                    declineCode = "57";
+                    declineReason = "Currency not accepted at this terminal";
+                }
+
+                if (declineCode == null) {
+                    Object pinThresh = params.get("pinRequiredAbove");
+                    if (pinThresh != null) {
+                        BigDecimal threshold = new BigDecimal(pinThresh.toString());
+                        if (dto.getAmount().compareTo(threshold) > 0) {
+                            declineCode = "65";
+                            declineReason = "PIN required for amounts above " + threshold;
+                        }
+                    }
+                }
+
+                if (declineCode == null) {
+                    Object ctlsLimitVal = params.get("ctlsLimit");
+                    String capability = termData.get("capability") != null ? termData.get("capability").toString() : null;
+                    if (ctlsLimitVal != null && "CTLS".equalsIgnoreCase(capability)) {
+                        BigDecimal ctlsLimit = new BigDecimal(ctlsLimitVal.toString());
+                        if (dto.getAmount().compareTo(ctlsLimit) > 0) {
+                            declineCode = "65";
+                            declineReason = "Amount exceeds contactless limit of " + ctlsLimit;
+                        }
+                    }
+                }
+
+                if (declineCode != null) {
+                    auth.setStatus(TxnStatus.DECLINED);
+                    auth.setAuthCode(null);
+                    auth.setResponseCode(declineCode);
+                    auth.setRiskScore(0);
+                    auth.setRiskReason(declineReason);
+                    AuthMessage saved = authRepo.save(auth);
+                    log.warn("Param profile decline: code={}, reason={}, tid={}", declineCode, declineReason, tid);
+                    return toAuthResponse(saved);
+                }
+            } catch (Exception e) {
+                log.warn("Failed to parse paramsJson for terminal {}: {}", dto.getTerminalId(), e.getMessage());
+            }
+        }
 
         // Step 5: Authorization decision
         if ("BLOCK".equals(riskResult)) {
@@ -293,6 +352,11 @@ public class SwitchService {
                 filter.getNetwork(), pageable);
 
         return new PagedResponseDTO<>(authPage.map(this::toAuthResponse));
+    }
+
+    // HAS OPEN BATCHES FOR MERCHANT
+    public boolean hasOpenBatchesForMerchant(Long merchantId) {
+        return batchRepo.existsByMerchantIdAndStatus(merchantId, BatchStatus.OPEN);
     }
 
     // GET BATCHES

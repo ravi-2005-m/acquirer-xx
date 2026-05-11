@@ -23,7 +23,7 @@ function Register() {
     e.preventDefault();
     setValidated(true);
 
-    if (!username || !password || !email || !name) return;
+    if (!username || !password || !email || !name || !phone) return;
     if (!passwordsMatch) {
       setError('Passwords do not match.');
       return;
@@ -43,7 +43,7 @@ function Register() {
         name,
         email,
         role,
-        ...(phone && { phone }),
+        phone,
       });
       navigate('/login');
     } catch (err) {
@@ -102,7 +102,7 @@ function Register() {
 
                   <div className="col-md-6 mb-3">
                     <label htmlFor="phone" className="form-label">
-                      Phone <span className="text-muted small">(optional)</span>
+                      Phone <span className="text-danger">*</span>
                     </label>
                     <input
                       type="tel"
@@ -111,8 +111,10 @@ function Register() {
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
                       pattern="^[+0-9 ()\-]{6,20}$"
+                      required
                       disabled={submitting}
                     />
+                    <div className="invalid-feedback">Please enter a valid phone number.</div>
                   </div>
                 </div>
 

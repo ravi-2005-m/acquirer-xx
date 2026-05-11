@@ -1,6 +1,5 @@
 package com.acquirerx.settlement.settlement.dto;
 
-import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -17,7 +16,6 @@ public class AdjustmentRequestDTO {
     private Long txnId;
 
     @NotNull(message = "Amount is required")
-    @DecimalMin(value = "0.01", message = "Amount must be positive")
     private BigDecimal amount;
 
     @NotBlank(message = "Reason is required")

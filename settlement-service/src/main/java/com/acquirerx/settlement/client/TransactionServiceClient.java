@@ -15,4 +15,7 @@ public interface TransactionServiceClient {
 
     @PutMapping("/txns/merchant/{merchantId}/mark-settled")
     Map<String, Object> markTxnsSettled(@PathVariable Long merchantId);
+
+    @GetMapping("/transactions/batch/merchant/{merchantId}/has-open")
+    Map<String, Object> hasOpenBatches(@PathVariable Long merchantId);
 }

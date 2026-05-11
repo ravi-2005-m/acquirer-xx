@@ -22,4 +22,10 @@ public class TransactionServiceClientFallback implements TransactionServiceClien
         throw new IllegalStateException(
                 "Transaction service unavailable. Cannot mark transactions as settled.");
     }
+
+    @Override
+    public Map<String, Object> hasOpenBatches(Long merchantId) {
+        log.warn("FALLBACK: transaction-service unavailable. Assuming no open batches for merchantId={}", merchantId);
+        return java.util.Map.of("data", false);
+    }
 }

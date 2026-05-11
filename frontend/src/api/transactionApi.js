@@ -53,6 +53,8 @@ export const transactionApi = {
   getBatches: (terminalId) => api.get(`/transactions/batch/${terminalId}`),
   openBatch: (terminalId) => api.post(`/transactions/batch/${terminalId}/open`),
   closeBatch: (terminalId) => api.post(`/transactions/batch/${terminalId}/close`),
+  hasOpenBatches: (merchantId) =>
+    api.get(`/transactions/batch/merchant/${merchantId}/has-open`, { suppressToast: true }),
 
   // ---- Txn endpoints (/txns) ----
 

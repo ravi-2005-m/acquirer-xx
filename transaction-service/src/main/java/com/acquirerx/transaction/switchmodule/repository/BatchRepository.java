@@ -12,4 +12,8 @@ public interface BatchRepository extends JpaRepository<Batch, Long> {
     Optional<Batch> findByTerminalIdAndStatus(Long terminalId, BatchStatus status);
 
     List<Batch> findByTerminalId(Long terminalId);
+
+    List<Batch> findAllByStatus(BatchStatus status);
+
+    boolean existsByMerchantIdAndStatus(Long merchantId, BatchStatus status);
 }
