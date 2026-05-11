@@ -1,15 +1,24 @@
 import { useState } from 'react';
 import { riskApi } from '../../api/riskApi';
 
-const SEVERITIES = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
+const CONDITION_TYPES = [
+  { value: 'AMOUNT_GT',      label: 'Amount Greater Than' },
+  { value: 'AMOUNT_LT',      label: 'Amount Less Than' },
+  { value: 'BLACKLISTED_PAN', label: 'Blacklisted PAN' },
+  { value: 'VELOCITY_COUNT', label: 'Velocity Count' },
+  { value: 'COUNTRY_BLOCK',  label: 'Country Block' },
+  { value: 'MCC_BLOCK',      label: 'MCC Block' },
+];
+
 const ACTIONS = ['ALLOW', 'REVIEW', 'BLOCK'];
 
 const INITIAL = {
-  name: '',
-  expression: '',
-  maxAmount: '',
-  severity: 'MEDIUM',
-  action: 'REVIEW',
+  name:          '',
+  conditionType: 'AMOUNT_GT',
+  threshold:     '',
+  action:        'REVIEW',
+  priority:      '',
+  description:   '',
 };
 
 function CreateRuleModal({ show, onClose, onCreated }) {
@@ -28,10 +37,11 @@ function CreateRuleModal({ show, onClose, onCreated }) {
     try {
       const payload = {
         name:          form.name,
-        conditionType: form.expression || null,
-        threshold:     form.maxAmount !== '' ? form.maxAmount : null,
-        severity:      form.severity,
+        conditionType: form.conditionType,
+        threshold:     form.threshold !== '' ? Number(form.threshold) : null,
         action:        form.action,
+        priority:      form.priority !== '' ? Number(form.priority) : null,
+        description:   form.description || null,
       };
       await riskApi.createRule(payload);
       setForm(INITIAL);
@@ -59,8 +69,11 @@ function CreateRuleModal({ show, onClose, onCreated }) {
                 {error && (
                   <div className="alert alert-danger py-2 small">{error}</div>
                 )}
+
                 <div className="mb-3">
-                  <label className="form-label small fw-semibold">Rule Name <span className="text-danger">*</span></label>
+                  <label className="form-label small fw-semibold">
+                    Rule Name <span className="text-danger">*</span>
+                  </label>
                   <input
                     className="form-control form-control-sm"
                     placeholder="e.g. Block High-Value Txns"
@@ -69,58 +82,86 @@ function CreateRuleModal({ show, onClose, onCreated }) {
                     required
                   />
                 </div>
-                <div className="mb-3">
-                  <label className="form-label small fw-semibold">Expression</label>
-                  <input
-                    className="form-control form-control-sm font-monospace"
-                    placeholder="e.g. amount > 50000"
-                    value={form.expression}
-                    onChange={e => set('expression', e.target.value)}
-                  />
-                  <div className="form-text small">Optional rule condition expression</div>
-                </div>
+
                 <div className="row g-3 mb-3">
                   <div className="col-6">
-                    <label className="form-label small fw-semibold">Max Amount</label>
+                    <label className="form-label small fw-semibold">
+                      Condition Type <span className="text-danger">*</span>
+                    </label>
+                    <select
+                      className="form-select form-select-sm"
+                      value={form.conditionType}
+                      onChange={e => set('conditionType', e.target.value)}
+                      required
+                    >
+                      {CONDITION_TYPES.map(c => (
+                        <option key={c.value} value={c.value}>{c.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="col-6">
+                    <label className="form-label small fw-semibold">Threshold</label>
                     <input
                       type="number"
                       step="0.01"
                       min="0"
                       className="form-control form-control-sm"
-                      placeholder="e.g. 50000"
-                      value={form.maxAmount}
-                      onChange={e => set('maxAmount', e.target.value)}
+                      placeholder="e.g. 10000"
+                      value={form.threshold}
+                      onChange={e => set('threshold', e.target.value)}
                     />
-                    <div className="form-text small">Trigger threshold (optional)</div>
                   </div>
+                </div>
+
+                <div className="row g-3 mb-3">
                   <div className="col-6">
-                    <label className="form-label small fw-semibold">Severity <span className="text-danger">*</span></label>
+                    <label className="form-label small fw-semibold">
+                      Action <span className="text-danger">*</span>
+                    </label>
                     <select
                       className="form-select form-select-sm"
-                      value={form.severity}
-                      onChange={e => set('severity', e.target.value)}
+                      value={form.action}
+                      onChange={e => set('action', e.target.value)}
                       required
                     >
-                      {SEVERITIES.map(s => <option key={s}>{s}</option>)}
+                      {ACTIONS.map(a => <option key={a}>{a}</option>)}
                     </select>
                   </div>
+                  <div className="col-6">
+                    <label className="form-label small fw-semibold">Priority</label>
+                    <input
+                      type="number"
+                      min="1"
+                      className="form-control form-control-sm"
+                      placeholder="e.g. 1"
+                      value={form.priority}
+                      onChange={e => set('priority', e.target.value)}
+                    />
+                    <div className="form-text small">Lower number = higher priority</div>
+                  </div>
                 </div>
+
                 <div className="mb-0">
-                  <label className="form-label small fw-semibold">Action <span className="text-danger">*</span></label>
-                  <select
-                    className="form-select form-select-sm"
-                    value={form.action}
-                    onChange={e => set('action', e.target.value)}
-                    required
-                  >
-                    {ACTIONS.map(a => <option key={a}>{a}</option>)}
-                  </select>
+                  <label className="form-label small fw-semibold">Description</label>
+                  <textarea
+                    className="form-control form-control-sm"
+                    rows={2}
+                    placeholder="Optional description"
+                    value={form.description}
+                    onChange={e => set('description', e.target.value)}
+                  />
                 </div>
               </div>
+
               <div className="modal-footer">
-                <button type="button" className="btn btn-outline-secondary btn-sm" onClick={onClose}>Cancel</button>
+                <button type="button" className="btn btn-outline-secondary btn-sm" onClick={onClose}>
+                  Cancel
+                </button>
                 <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>
-                  {saving ? <><span className="spinner-border spinner-border-sm me-1" />Saving...</> : 'Create Rule'}
+                  {saving
+                    ? <><span className="spinner-border spinner-border-sm me-1" />Saving...</>
+                    : 'Create Rule'
+                  }
                 </button>
               </div>
             </form>
