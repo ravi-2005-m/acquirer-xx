@@ -5,6 +5,7 @@ import java.util.Set;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.acquirerx.merchant.common.dto.PagedResponseDTO;
 import com.acquirerx.merchant.common.enums.RiskLevel;
@@ -16,7 +17,10 @@ import com.acquirerx.merchant.merchant.dto.MerchantRequestDTO;
 import com.acquirerx.merchant.merchant.dto.MerchantResponseDTO;
 import com.acquirerx.merchant.merchant.dto.MerchantStatsDTO;
 import com.acquirerx.merchant.merchant.entity.Merchant;
+import com.acquirerx.merchant.merchant.repository.MerchantKYCRepository;
 import com.acquirerx.merchant.merchant.repository.MerchantRepository;
+import com.acquirerx.merchant.merchant.repository.PricingModelRepository;
+import com.acquirerx.merchant.merchant.repository.SettlementProfileRepository;
 import com.acquirerx.merchant.store.repository.StoreRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -33,6 +37,9 @@ public class MerchantService {
 
     private final MerchantRepository repository;
     private final StoreRepository storeRepository;
+    private final MerchantKYCRepository kycRepository;
+    private final PricingModelRepository pricingRepository;
+    private final SettlementProfileRepository settlementProfileRepository;
 
     public MerchantResponseDTO create(MerchantRequestDTO dto) {
         if (repository.existsByLegalName(dto.getLegalName())) {
@@ -158,8 +165,13 @@ public class MerchantService {
         return toResponse(updated);
     }
 
+    @Transactional
     public void delete(Long merchantId) {
         Merchant merchant = getEntityById(merchantId);
+        kycRepository.deleteAll(kycRepository.findByMerchant(merchant));
+        pricingRepository.deleteAll(pricingRepository.findByMerchant(merchant));
+        settlementProfileRepository.deleteAll(settlementProfileRepository.findByMerchant(merchant));
+        storeRepository.deleteAll(storeRepository.findByMerchant(merchant));
         repository.delete(merchant);
         log.info("Merchant deleted: id={}", merchantId);
     }
