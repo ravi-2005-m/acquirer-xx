@@ -1,9 +1,13 @@
 import { useState } from 'react';
 import { riskApi } from '../../api/riskApi';
 
-const ENTRY_TYPES = ['PAN', 'MERCHANT_ID', 'TERMINAL_ID', 'IP_ADDRESS', 'COUNTRY_CODE', 'BIN'];
+const ENTRY_TYPES = [
+  { value: 'PAN',      label: 'PAN' },
+  { value: 'MERCHANT', label: 'Merchant ID' },
+  { value: 'TERMINAL', label: 'Terminal ID' },
+];
 
-const INITIAL = { entryType: 'PAN', value: '', reason: '' };
+const INITIAL = { type: 'PAN', value: '', reason: '' };
 
 function AddBlacklistModal({ show, onClose, onAdded }) {
   const [form, setForm]     = useState(INITIAL);
@@ -30,13 +34,10 @@ function AddBlacklistModal({ show, onClose, onAdded }) {
   };
 
   const placeholder = {
-    PAN:         '4111111111111111',
-    MERCHANT_ID: '12345',
-    TERMINAL_ID: 'T001',
-    IP_ADDRESS:  '192.168.1.1',
-    COUNTRY_CODE:'CN',
-    BIN:         '411111',
-  }[form.entryType] || 'Value';
+    PAN:      '4111111111111111',
+    MERCHANT: '12345',
+    TERMINAL: 'T001',
+  }[form.type] || 'Value';
 
   return (
     <>
@@ -58,10 +59,10 @@ function AddBlacklistModal({ show, onClose, onAdded }) {
                   <label className="form-label small fw-semibold">Entry Type <span className="text-danger">*</span></label>
                   <select
                     className="form-select form-select-sm"
-                    value={form.entryType}
-                    onChange={e => set('entryType', e.target.value)}
+                    value={form.type}
+                    onChange={e => set('type', e.target.value)}
                   >
-                    {ENTRY_TYPES.map(t => <option key={t}>{t}</option>)}
+                    {ENTRY_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                   </select>
                 </div>
                 <div className="mb-3">

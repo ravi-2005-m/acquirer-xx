@@ -204,34 +204,31 @@ public class RiskService {
     public RiskSummaryDTO getRiskSummary() {
         LocalDateTime todayStart = LocalDate.now().atStartOfDay();
 
-        long totalEvents = riskEventRepository.count();
+        long totalEvents  = riskEventRepository.count();
         long totalBlocked = riskEventRepository.countByResult("BLOCK");
-        long totalReview = riskEventRepository.countByResult("REVIEW");
-        long totalAllow = riskEventRepository.countByResult("ALLOW");
+        long totalReview  = riskEventRepository.countByResult("REVIEW");
+        long totalAllow   = riskEventRepository.countByResult("ALLOW");
 
-        long todayEvents = riskEventRepository.countByDateAfter(todayStart);
+        long todayEvents  = riskEventRepository.countByDateAfter(todayStart);
         long todayBlocked = riskEventRepository.countByResultAndDateAfter("BLOCK", todayStart);
-        long todayReview = riskEventRepository.countByResultAndDateAfter("REVIEW", todayStart);
+        long todayReview  = riskEventRepository.countByResultAndDateAfter("REVIEW", todayStart);
+        long todayAllow   = todayEvents - todayBlocked - todayReview;
 
-        long panCount = blacklistRepository.countByTypeAndActiveTrue("PAN");
-        long terminalCount = blacklistRepository.countByTypeAndActiveTrue("TERMINAL");
-        long merchantCount = blacklistRepository.countByTypeAndActiveTrue("MERCHANT");
+        long blacklistEntries = blacklistRepository.countByTypeAndActiveTrue("PAN")
+                + blacklistRepository.countByTypeAndActiveTrue("TERMINAL")
+                + blacklistRepository.countByTypeAndActiveTrue("MERCHANT");
 
-        long blockRules = riskRuleRepository.countByActionAndActiveTrue("BLOCK");
-        long reviewRules = riskRuleRepository.countByActionAndActiveTrue("REVIEW");
-        long activeRules = blockRules + reviewRules +
-                riskRuleRepository.countByActionAndActiveTrue("ALLOW");
+        long activeRules   = riskRuleRepository.countByActiveTrue();
+        long inactiveRules = riskRuleRepository.count() - activeRules;
 
-        double blockRate = totalEvents > 0
-                ? Math.round((totalBlocked * 100.0 / totalEvents) * 100.0) / 100.0
-                : 0.0;
+        double allowRate  = totalEvents > 0 ? (double) totalAllow   / totalEvents : 0.0;
+        double reviewRate = totalEvents > 0 ? (double) totalReview   / totalEvents : 0.0;
+        double blockRate  = totalEvents > 0 ? (double) totalBlocked  / totalEvents : 0.0;
 
         return new RiskSummaryDTO(
-                totalEvents, totalBlocked, totalReview, totalAllow,
-                todayEvents, todayBlocked, todayReview,
-                panCount, terminalCount, merchantCount,
-                activeRules, blockRules, reviewRules,
-                blockRate
+                todayEvents, todayAllow, todayReview, todayBlocked, null,
+                totalEvents, allowRate, reviewRate, blockRate,
+                activeRules, inactiveRules, blacklistEntries
         );
     }
 
