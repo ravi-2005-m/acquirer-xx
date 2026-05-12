@@ -36,7 +36,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/stores/{storeId:\\d+}").authenticated()
                 // User-facing merchant + store + onboarding endpoints
                 .requestMatchers("/merchants/**", "/stores/**")
-                    .hasAnyRole("ADMIN", "MERCHANT_OPS")
+                    .hasAnyRole("ADMIN", "MERCHANT_OPS", "POS_OPS", "RECON")
                 .anyRequest().authenticated()
             )
             .addFilterBefore(headerAuthFilter, UsernamePasswordAuthenticationFilter.class);

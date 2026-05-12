@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 public class RiskEventFilterDTO {
 
     private String result;
+    private String pan;
     private Integer minScore;
     private Integer maxScore;
     private LocalDateTime fromDate;

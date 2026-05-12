@@ -1,6 +1,8 @@
 package com.acquirerx.ops.dispute.service;
 
 import com.acquirerx.ops.client.TransactionServiceClient;
+import com.acquirerx.ops.common.NotificationCategory;
+import com.acquirerx.ops.notification.service.NotificationService;
 import com.acquirerx.ops.common.dto.PagedResponseDTO;
 import com.acquirerx.ops.common.DisputeStage;
 import com.acquirerx.ops.common.DisputeStatus;
@@ -47,8 +49,9 @@ public class DisputeService {
     private final DisputeDocumentRepository disputeDocumentRepository;
     private final DisputeActionRepository disputeActionRepository;
     private final TransactionServiceClient transactionClient;
+    private final NotificationService notificationService;
 
-    public DisputeCaseResponseDTO openDispute(OpenDisputeRequestDTO dto) {
+    public DisputeCaseResponseDTO openDispute(OpenDisputeRequestDTO dto, Long userId) {
         Long txnId = dto.getTxnId();
         java.math.BigDecimal txnAmount = null;
         Long merchantId = null;
@@ -86,6 +89,16 @@ public class DisputeService {
 
         DisputeCase saved = disputeCaseRepository.save(dispute);
         log.info("Dispute opened: caseId={}, txnId={}", saved.getCaseId(), txnId);
+
+        if (userId != null) {
+            String msg = "New dispute #" + saved.getCaseId() + " opened for Txn #" + txnId
+                    + " – " + dto.getReasonCode();
+            try {
+                notificationService.send(userId, msg, NotificationCategory.DISPUTE);
+            } catch (Exception e) {
+                log.warn("Failed to send dispute notification: {}", e.getMessage());
+            }
+        }
 
         return toCaseResponse(saved);
     }

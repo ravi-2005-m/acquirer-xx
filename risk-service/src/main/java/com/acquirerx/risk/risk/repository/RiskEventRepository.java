@@ -18,6 +18,7 @@ public interface RiskEventRepository extends JpaRepository<RiskEvent, Long> {
 
     @Query("SELECT e FROM RiskEvent e WHERE " +
            "(:result IS NULL OR e.result = :result) AND " +
+           "(:pan IS NULL OR e.pan = :pan) AND " +
            "(:minScore IS NULL OR e.score >= :minScore) AND " +
            "(:maxScore IS NULL OR e.score <= :maxScore) AND " +
            "(:fromDate IS NULL OR e.eventDate >= :fromDate) AND " +
@@ -26,6 +27,7 @@ public interface RiskEventRepository extends JpaRepository<RiskEvent, Long> {
            "(:ruleId IS NULL OR e.rule.riskRuleId = :ruleId)")
     Page<RiskEvent> findByFiltersPaged(
             @Param("result") String result,
+            @Param("pan") String pan,
             @Param("minScore") Integer minScore,
             @Param("maxScore") Integer maxScore,
             @Param("fromDate") LocalDateTime fromDate,

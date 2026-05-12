@@ -37,6 +37,8 @@ public class RiskEvent {
 
     private String result;
 
+    private String pan;
+
     private LocalDateTime eventDate;
 
     @PrePersist

@@ -33,7 +33,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/terminals/{terminalId:\\d+}").authenticated()
                 // User-facing terminal endpoints
                 .requestMatchers("/terminals/**", "/stores/*/terminals", "/stores/*/terminals/**")
-                    .hasAnyRole("ADMIN", "POS_OPS")
+                    .hasAnyRole("ADMIN", "POS_OPS", "RECON", "RISK", "DISPUTES", "MERCHANT_OPS")
                 .anyRequest().authenticated()
             )
             .addFilterBefore(headerAuthFilter, UsernamePasswordAuthenticationFilter.class);

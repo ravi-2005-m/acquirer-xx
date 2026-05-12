@@ -1,6 +1,7 @@
 package com.acquirerx.settlement.settlement.service;
 
 import com.acquirerx.settlement.client.MerchantServiceClient;
+import com.acquirerx.settlement.client.OpsServiceClient;
 import com.acquirerx.settlement.client.TransactionServiceClient;
 import com.acquirerx.settlement.common.dto.PagedResponseDTO;
 import com.acquirerx.settlement.common.exception.ResourceNotFoundException;
@@ -48,8 +49,9 @@ public class SettlementService {
     private final AdjustmentRepository adjustmentRepository;
     private final TransactionServiceClient transactionClient;
     private final MerchantServiceClient merchantClient;
+    private final OpsServiceClient opsServiceClient;
 
-    public SettlementBatchResponseDTO settle(Long merchantId) {
+    public SettlementBatchResponseDTO settle(Long merchantId, Long userId) {
         String merchantName = null;
         try {
             Map<String, Object> merchantResp = merchantClient.getMerchantById(merchantId);
@@ -183,6 +185,17 @@ public class SettlementService {
         log.info("Settlement complete: merchantId={}, gross={}, fees={}, net={}, txnCount={}",
                 merchantId, grossAmount, totalFees, netAmount, txnList.size());
 
+        if (userId != null) {
+            String name = merchantName != null ? merchantName : "Merchant #" + merchantId;
+            String msg = "Settlement batch #" + saved.getSettleBatchId() + " completed for " + name
+                    + " – Net ₹" + netAmount.toPlainString() + " (" + txnList.size() + " txns)";
+            try {
+                opsServiceClient.sendNotification(userId, msg, "SETTLEMENT");
+            } catch (Exception e) {
+                log.warn("Failed to send settlement notification: {}", e.getMessage());
+            }
+        }
+
         return toSettlementResponse(saved);
     }
 
@@ -313,11 +326,30 @@ public class SettlementService {
         return o != null ? new BigDecimal(o.toString()) : BigDecimal.ZERO;
     }
 
+    private String resolveMerchantName(SettlementBatch b) {
+        if (b.getMerchantName() != null) return b.getMerchantName();
+        try {
+            Map<String, Object> resp = merchantClient.getMerchantById(b.getMerchantId());
+            Map<String, Object> data = (Map<String, Object>) resp.get("data");
+            if (data != null && data.get("legalName") != null) {
+                String name = data.get("legalName").toString();
+                if (!name.toLowerCase().contains("unavailable") && !"unknown".equalsIgnoreCase(name)) {
+                    b.setMerchantName(name);
+                    settlementBatchRepository.save(b);
+                    return name;
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Could not resolve merchant name for batch {}: {}", b.getSettleBatchId(), e.getMessage());
+        }
+        return null;
+    }
+
     private SettlementBatchResponseDTO toSettlementResponse(SettlementBatch b) {
         SettlementBatchResponseDTO r = new SettlementBatchResponseDTO();
         r.setSettleBatchId(b.getSettleBatchId());
         r.setMerchantId(b.getMerchantId());
-        r.setMerchantName(b.getMerchantName());
+        r.setMerchantName(resolveMerchantName(b));
         r.setPeriodStart(b.getPeriodStart());
         r.setPeriodEnd(b.getPeriodEnd());
         r.setGrossAmount(b.getGrossAmount());

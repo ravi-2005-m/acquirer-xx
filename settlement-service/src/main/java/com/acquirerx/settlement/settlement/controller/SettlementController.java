@@ -13,6 +13,7 @@ import com.acquirerx.settlement.settlement.dto.SettlementSummaryDTO;
 import com.acquirerx.settlement.settlement.service.SettlementService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
@@ -36,8 +37,15 @@ public class SettlementController {
 
     @Operation(summary = "Run settlement for a merchant")
     @PostMapping("/merchant/{merchantId:\\d+}")
-    public ApiResponse<SettlementBatchResponseDTO> settle(@PathVariable Long merchantId) {
-        return new ApiResponse<>("Settlement created", service.settle(merchantId));
+    public ApiResponse<SettlementBatchResponseDTO> settle(@PathVariable Long merchantId,
+                                                          HttpServletRequest request) {
+        Long userId = parseUserId(request.getHeader("X-User-Id"));
+        return new ApiResponse<>("Settlement created", service.settle(merchantId, userId));
+    }
+
+    private Long parseUserId(String header) {
+        if (header == null || header.isBlank()) return null;
+        try { return Long.parseLong(header); } catch (NumberFormatException e) { return null; }
     }
 
     @PostMapping("/payout/{settleBatchId:\\d+}")

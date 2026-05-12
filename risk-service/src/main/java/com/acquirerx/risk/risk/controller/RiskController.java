@@ -14,6 +14,7 @@ import com.acquirerx.risk.risk.dto.RiskSummaryDTO;
 import com.acquirerx.risk.risk.service.RiskService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Pattern;
@@ -92,8 +93,17 @@ public class RiskController {
             @RequestParam(required = false)
             @Pattern(regexp = "^[0-9]{6}[*X]{3,9}[0-9]{4}$", message = "PAN must be masked")
             String panMasked,
-            @RequestParam(required = false) String tid) {
-        return new ApiResponse<>("Risk check complete", service.checkRisk(amount, panMasked, tid));
+            @RequestParam(required = false) String tid,
+            HttpServletRequest request) {
+        Long userId = parseUserId(request.getHeader("X-User-Id"));
+        RiskCheckResultDTO result = service.checkRisk(amount, panMasked, tid);
+        service.saveManualCheckEvent(panMasked, result, userId);
+        return new ApiResponse<>("Risk check complete", result);
+    }
+
+    private Long parseUserId(String header) {
+        if (header == null || header.isBlank()) return null;
+        try { return Long.parseLong(header); } catch (NumberFormatException e) { return null; }
     }
 
     @GetMapping("/summary")

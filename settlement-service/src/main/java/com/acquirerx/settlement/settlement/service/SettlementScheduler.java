@@ -52,7 +52,7 @@ public class SettlementScheduler {
         for (Map<String, Object> merchant : merchants) {
             Long merchantId = Long.valueOf(merchant.get("merchantId").toString());
             try {
-                settlementService.settle(merchantId);
+                settlementService.settle(merchantId, null);
                 success++;
             } catch (IllegalStateException e) {
                 skip++;

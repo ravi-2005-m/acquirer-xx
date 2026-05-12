@@ -388,7 +388,8 @@ public class SwitchService {
             byType.put((String) row[0], (Long) row[1]);
         }
 
-        return new TransactionStatsDTO(total != null ? total : BigDecimal.ZERO, byType);
+        long totalTransactions = byType.values().stream().mapToLong(Long::longValue).sum();
+        return new TransactionStatsDTO(totalTransactions, total != null ? total : BigDecimal.ZERO, byType);
     }
 
     // INTERNAL

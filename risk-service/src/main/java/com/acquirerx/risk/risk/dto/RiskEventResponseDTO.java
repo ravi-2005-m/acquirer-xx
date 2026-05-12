@@ -10,6 +10,7 @@ public class RiskEventResponseDTO {
 
     private Long riskEventId;
     private Long txnId;
+    private String pan;
     private BigDecimal txnAmount;
     private Long ruleId;
     private String ruleName;

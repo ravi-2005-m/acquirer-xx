@@ -1,5 +1,6 @@
 package com.acquirerx.risk.risk.service;
 
+import com.acquirerx.risk.client.OpsServiceClient;
 import com.acquirerx.risk.common.dto.PagedResponseDTO;
 import com.acquirerx.risk.common.exception.ResourceNotFoundException;
 import com.acquirerx.risk.common.pagination.PaginationParams;
@@ -16,6 +17,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -42,6 +46,7 @@ public class RiskService {
     private final RiskRuleRepository riskRuleRepository;
     private final RiskEventRepository riskEventRepository;
     private final BlacklistRepository blacklistRepository;
+    private final OpsServiceClient opsServiceClient;
 
     // ── CHECK RISK (called by transaction-service via Feign) ──
     public RiskCheckResultDTO checkRisk(Double amount, String panMasked, String tid) {
@@ -156,6 +161,7 @@ public class RiskService {
         rule.setExpression(dto.getConditionType());
         rule.setMaxAmount(dto.getThreshold());
         rule.setAction(dto.getAction());
+        rule.setPriority(dto.getPriority());
         rule.setActive(true);
 
         RiskRule saved = riskRuleRepository.save(rule);
@@ -183,10 +189,14 @@ public class RiskService {
                     dto.getType() + " already blacklisted");
                 });
 
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String currentUser = (auth != null) ? auth.getName() : null;
+
         Blacklist entry = new Blacklist();
         entry.setType(dto.getType());
         entry.setValue(normalizedValue);
         entry.setReason(dto.getReason());
+        entry.setAddedBy(currentUser);
 
         Blacklist saved = blacklistRepository.save(entry);
         log.info("Blacklist added: type={}", dto.getType());
@@ -212,11 +222,32 @@ public class RiskService {
     public PagedResponseDTO<RiskEventResponseDTO> searchRiskEvents(RiskEventFilterDTO filter, PaginationParams pagination) {
         pagination.validateSortField(EVENT_SORT_FIELDS);
         Pageable pageable = pagination.toPageable();
+        String maskedPan = (filter.getPan() != null && !filter.getPan().isBlank())
+                ? MaskingUtil.maskPan(filter.getPan())
+                : null;
         Page<RiskEvent> eventPage = riskEventRepository.findByFiltersPaged(
-                filter.getResult(), filter.getMinScore(), filter.getMaxScore(),
+                filter.getResult(), maskedPan, filter.getMinScore(), filter.getMaxScore(),
                 filter.getFromDate(), filter.getToDate(),
                 filter.getTxnId(), filter.getRuleId(), pageable);
         return new PagedResponseDTO<>(eventPage.map(this::toEventResponse));
+    }
+
+    public void saveManualCheckEvent(String panMasked, RiskCheckResultDTO result, Long userId) {
+        RiskEvent event = new RiskEvent();
+        event.setPan(panMasked != null ? MaskingUtil.maskPan(panMasked) : null);
+        event.setScore(result.getScore());
+        event.setResult(result.getResult());
+        riskEventRepository.save(event);
+
+        if ("BLOCK".equals(result.getResult()) && userId != null) {
+            String pan = panMasked != null ? MaskingUtil.maskPan(panMasked) : "unknown";
+            String msg = "Risk BLOCK – PAN: " + pan + ", Score: " + result.getScore() + " – " + result.getReason();
+            try {
+                opsServiceClient.sendNotification(userId, msg, "RISK");
+            } catch (Exception e) {
+                log.warn("Failed to send risk block notification: {}", e.getMessage());
+            }
+        }
     }
 
     public PagedResponseDTO<BlacklistResponseDTO> getActiveBlacklist(String type, PaginationParams pagination) {
@@ -312,13 +343,15 @@ public class RiskService {
     // ── MAPPERS ───────────────────────────────
     private RiskRuleResponseDTO toRuleResponse(RiskRule r) {
         RiskRuleResponseDTO dto = new RiskRuleResponseDTO();
-        dto.setRiskRuleId(r.getRiskRuleId());
+        dto.setRuleId(r.getRiskRuleId());
         dto.setName(r.getName());
-        dto.setExpression(r.getExpression());
-        dto.setMaxAmount(r.getMaxAmount());
+        dto.setConditionType(r.getExpression());
+        dto.setThreshold(r.getMaxAmount());
         dto.setSeverity(r.getSeverity());
         dto.setAction(r.getAction());
         dto.setActive(r.getActive());
+        dto.setPriority(r.getPriority());
+        dto.setCreatedAt(r.getCreatedAt());
         return dto;
     }
 
@@ -326,6 +359,7 @@ public class RiskService {
         RiskEventResponseDTO dto = new RiskEventResponseDTO();
         dto.setRiskEventId(e.getRiskEventId());
         dto.setTxnId(e.getTxnId());
+        dto.setPan(e.getPan());
         dto.setScore(e.getScore());
         dto.setResult(e.getResult());
         dto.setEventDate(e.getEventDate());
@@ -344,6 +378,7 @@ public class RiskService {
         dto.setReason(b.getReason());
         dto.setActive(b.getActive());
         dto.setCreatedAt(b.getCreatedAt());
+        dto.setAddedBy(b.getAddedBy());
         return dto;
     }
 }

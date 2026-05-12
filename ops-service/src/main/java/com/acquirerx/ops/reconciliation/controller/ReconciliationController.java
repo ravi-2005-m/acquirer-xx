@@ -13,6 +13,7 @@ import com.acquirerx.ops.reconciliation.dto.ResolveExceptionDTO;
 import com.acquirerx.ops.reconciliation.service.ReconciliationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
@@ -39,8 +40,15 @@ public class ReconciliationController {
                     "Items marked MATCHED/MISMATCHED/UNMATCHED and exceptions are created automatically for mismatches."
     )
     @PostMapping("/load")
-    public ApiResponse<ReconFileResponseDTO> loadAndReconcile(@Valid @RequestBody ReconFileRequestDTO dto) {
-        return new ApiResponse<>("Reconciliation complete", service.loadAndReconcile(dto));
+    public ApiResponse<ReconFileResponseDTO> loadAndReconcile(@Valid @RequestBody ReconFileRequestDTO dto,
+                                                              HttpServletRequest request) {
+        Long userId = parseUserId(request.getHeader("X-User-Id"));
+        return new ApiResponse<>("Reconciliation complete", service.loadAndReconcile(dto, userId));
+    }
+
+    private Long parseUserId(String header) {
+        if (header == null || header.isBlank()) return null;
+        try { return Long.parseLong(header); } catch (NumberFormatException e) { return null; }
     }
 
     @GetMapping("/files")

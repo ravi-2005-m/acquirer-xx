@@ -13,4 +13,5 @@ public class BlacklistResponseDTO {
     private String reason;
     private Boolean active;
     private LocalDateTime createdAt;
+    private String addedBy;
 }

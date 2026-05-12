@@ -31,6 +31,8 @@ public class Blacklist {
 
     private LocalDateTime createdAt;
 
+    private String addedBy;
+
     @PrePersist
     public void prePersist() {
         this.createdAt = LocalDateTime.now();

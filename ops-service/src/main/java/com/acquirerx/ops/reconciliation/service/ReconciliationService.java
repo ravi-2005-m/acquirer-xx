@@ -1,6 +1,8 @@
 package com.acquirerx.ops.reconciliation.service;
 
 import com.acquirerx.ops.client.TransactionServiceClient;
+import com.acquirerx.ops.common.NotificationCategory;
+import com.acquirerx.ops.notification.service.NotificationService;
 import com.acquirerx.ops.common.dto.PagedResponseDTO;
 import com.acquirerx.ops.common.exception.ResourceNotFoundException;
 import com.acquirerx.ops.common.pagination.PaginationParams;
@@ -50,9 +52,10 @@ public class ReconciliationService {
     private final ReconItemRepository reconItemRepository;
     private final ExceptionCaseRepository exceptionCaseRepository;
     private final TransactionServiceClient transactionClient;
+    private final NotificationService notificationService;
 
     // ── LOAD AND RECONCILE ───────────────────
-    public ReconFileResponseDTO loadAndReconcile(ReconFileRequestDTO dto) {
+    public ReconFileResponseDTO loadAndReconcile(ReconFileRequestDTO dto, Long userId) {
         ReconFile reconFile = new ReconFile();
         reconFile.setSource(dto.getSource());
         reconFile.setFileDate(dto.getFileDate());
@@ -102,7 +105,7 @@ public class ReconciliationService {
             if (matchedTxn == null) {
                 item.setMatchStatus("UNMATCHED");
                 item.setNotes("Transaction not found in system");
-                createException(itemDto.getReference(), "MISSING_TXN");
+                createException(itemDto.getReference(), "MISSING_TXN", userId);
                 unmatched++;
             } else {
                 BigDecimal systemAmount = matchedTxn.get("amount") != null
@@ -111,7 +114,7 @@ public class ReconciliationService {
                     item.setMatchStatus("MISMATCHED");
                     item.setNotes("Amount mismatch: system=" + systemAmount
                             + ", external=" + itemDto.getAmount());
-                    createException(itemDto.getReference(), "AMOUNT_MISMATCH");
+                    createException(itemDto.getReference(), "AMOUNT_MISMATCH", userId);
                     mismatched++;
                 } else {
                     item.setMatchStatus("MATCHED");
@@ -279,13 +282,22 @@ public class ReconciliationService {
         );
     }
 
-    private void createException(String referenceId, String category) {
+    private void createException(String referenceId, String category, Long userId) {
         ExceptionCase ex = new ExceptionCase();
         ex.setReferenceId(referenceId);
         ex.setCategory(category);
         ex.setStatus("OPEN");
         exceptionCaseRepository.save(ex);
         log.warn("Exception created: ref={}, category={}", referenceId, category);
+
+        if (userId != null) {
+            String msg = "Recon exception: " + category + " for reference #" + referenceId;
+            try {
+                notificationService.send(userId, msg, NotificationCategory.RECON);
+            } catch (Exception e) {
+                log.warn("Failed to send recon notification: {}", e.getMessage());
+            }
+        }
     }
 
     private ReconFileResponseDTO toFileResponse(ReconFile f) {

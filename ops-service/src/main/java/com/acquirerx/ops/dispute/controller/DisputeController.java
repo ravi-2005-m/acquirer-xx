@@ -14,6 +14,7 @@ import com.acquirerx.ops.dispute.dto.DisputeDocumentResponseDTO;
 import com.acquirerx.ops.dispute.dto.OpenDisputeRequestDTO;
 import com.acquirerx.ops.dispute.service.DisputeService;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
@@ -37,8 +38,15 @@ public class DisputeController {
     private final DisputeService service;
 
     @PostMapping
-    public ApiResponse<DisputeCaseResponseDTO> openDispute(@Valid @RequestBody OpenDisputeRequestDTO dto) {
-        return new ApiResponse<>("Dispute opened", service.openDispute(dto));
+    public ApiResponse<DisputeCaseResponseDTO> openDispute(@Valid @RequestBody OpenDisputeRequestDTO dto,
+                                                           HttpServletRequest request) {
+        Long userId = parseUserId(request.getHeader("X-User-Id"));
+        return new ApiResponse<>("Dispute opened", service.openDispute(dto, userId));
+    }
+
+    private Long parseUserId(String header) {
+        if (header == null || header.isBlank()) return null;
+        try { return Long.parseLong(header); } catch (NumberFormatException e) { return null; }
     }
 
     @GetMapping

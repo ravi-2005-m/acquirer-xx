@@ -89,8 +89,8 @@ function Dashboard() {
             label="Transactions"
             color="success"
             loading={transactions.loading}
-            error={null}
-            value={extract(transactions.data, 'total', 'totalTransactions', 'count')}
+            error={transactions.error ? 'Service unavailable' : null}
+            value={extract(transactions.data, 'totalTransactions', 'total', 'count')}
             subtitle={extract(transactions.data, 'today', 'todayCount') != null
               ? `${Number(extract(transactions.data, 'today', 'todayCount')).toLocaleString()} today`
               : null}
@@ -118,7 +118,7 @@ function Dashboard() {
             color="warning"
             loading={disputes.loading}
             error={disputes.error ? 'Service unavailable' : null}
-            value={extract(disputes.data, 'activeDisputes', 'active', 'count')}
+            value={extract(disputes.data, 'openDisputes', 'active', 'count')}
             subtitle={extract(disputes.data, 'totalDisputes', 'total') != null
               ? `${Number(extract(disputes.data, 'totalDisputes', 'total')).toLocaleString()} total`
               : null}
@@ -131,10 +131,10 @@ function Dashboard() {
             label="Pending Settlements"
             color="primary"
             loading={settlements.loading}
-            error={null}
-            value={extract(settlements.data, 'pendingCount', 'pending', 'count')}
-            subtitle={extract(settlements.data, 'totalCount', 'total') != null
-              ? `${Number(extract(settlements.data, 'totalCount', 'total')).toLocaleString()} this month`
+            error={settlements.error ? 'Service unavailable' : null}
+            value={extract(settlements.data, 'readyBatches', 'pendingCount', 'count')}
+            subtitle={extract(settlements.data, 'totalBatches', 'total') != null
+              ? `${Number(extract(settlements.data, 'totalBatches', 'total')).toLocaleString()} this month`
               : null}
           />
         </div>
@@ -145,10 +145,10 @@ function Dashboard() {
             label="Recon Alerts"
             color="danger"
             loading={recon.loading}
-            error={null}
-            value={extract(recon.data, 'alertCount', 'alerts', 'count')}
-            subtitle={extract(recon.data, 'matchedCount', 'matched') != null
-              ? `${Number(extract(recon.data, 'matchedCount', 'matched')).toLocaleString()} matched`
+            error={recon.error ? 'Service unavailable' : null}
+            value={extract(recon.data, 'openExceptions', 'alertCount', 'alerts')}
+            subtitle={extract(recon.data, 'matchedItems', 'matched') != null
+              ? `${Number(extract(recon.data, 'matchedItems', 'matched')).toLocaleString()} matched`
               : null}
           />
         </div>
