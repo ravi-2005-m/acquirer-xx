@@ -115,11 +115,18 @@ public class SwitchService {
                 if (merchantData == null) {
                     merchantData = merchantResp;
                 }
+                Object status = merchantData.get("status");
+                if (status != null && !"ACTIVE".equals(status.toString())) {
+                    throw new IllegalStateException(
+                        "Transaction declined: merchant is " + status);
+                }
                 Object mcc = merchantData.get("mcc");
                 Object region = merchantData.get("region");
                 merchantMcc = mcc != null ? mcc.toString() : null;
                 merchantRegion = region != null ? region.toString() : "NA";
             }
+        } catch (IllegalStateException e) {
+            throw e;
         } catch (Exception ex) {
             log.warn("Unable to enrich merchant MCC/region for merchantId={}: {}", merchantId, ex.getMessage());
         }

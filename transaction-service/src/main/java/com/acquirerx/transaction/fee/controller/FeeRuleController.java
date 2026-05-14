@@ -54,4 +54,9 @@ public class FeeRuleController {
     public ApiResponse<List<FeeRuleResponseDTO>> getActiveFeeRules() {
         return new ApiResponse<>("Active fee rules fetched", service.getActiveFeeRules());
     }
+
+    @PatchMapping("/fee-rules/{feeRuleId:\\d+}/deactivate")
+    public ApiResponse<FeeRuleResponseDTO> deactivateFeeRule(@PathVariable Long feeRuleId) {
+        return new ApiResponse<>("Fee rule deactivated", service.deactivateFeeRule(feeRuleId));
+    }
 }

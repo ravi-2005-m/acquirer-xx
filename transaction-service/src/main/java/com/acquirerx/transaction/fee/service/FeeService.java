@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -104,11 +105,21 @@ public class FeeService {
                 .toList();
     }
 
-    // GET ACTIVE FEE RULES
+    // GET ACTIVE FEE RULES (honours effectiveFrom/effectiveTo)
     public List<FeeRuleResponseDTO> getActiveFeeRules() {
-        return feeRuleRepo.findByStatus("ACTIVE").stream()
+        return feeRuleRepo.findEffectiveRulesOrderByPriorityAsc(LocalDateTime.now()).stream()
                 .map(this::toFeeRuleResponse)
                 .toList();
+    }
+
+    // DEACTIVATE FEE RULE
+    public FeeRuleResponseDTO deactivateFeeRule(Long feeRuleId) {
+        FeeRule rule = feeRuleRepo.findById(feeRuleId)
+                .orElseThrow(() -> new ResourceNotFoundException("Fee rule not found: " + feeRuleId));
+        rule.setStatus("INACTIVE");
+        FeeRule saved = feeRuleRepo.save(rule);
+        log.info("Fee rule deactivated: id={}", feeRuleId);
+        return toFeeRuleResponse(saved);
     }
 
     // CREATE TXN FROM AUTH
@@ -335,7 +346,7 @@ public class FeeService {
 
         log.info("Calculating fees: amount={}, mcc={}, region={}, network={}", amount, mcc, region, network);
 
-        List<FeeRule> activeRules = feeRuleRepo.findByStatusOrderByPriorityAsc("ACTIVE");
+        List<FeeRule> activeRules = feeRuleRepo.findEffectiveRulesOrderByPriorityAsc(LocalDateTime.now());
         Optional<FeeRule> bestRule = activeRules.stream()
                 .filter(rule -> ruleMatcher.matches(rule, mcc, region, amount, network))
                 .findFirst();

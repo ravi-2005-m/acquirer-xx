@@ -29,6 +29,11 @@ public class StoreService {
     public StoreResponseDTO create(Long merchantId, StoreRequestDTO dto) {
         Merchant merchant = merchantService.getEntityById(merchantId);
 
+        if (merchant.getStatus() != Status.ACTIVE) {
+            throw new IllegalStateException(
+                "Cannot create store: merchant is " + merchant.getStatus());
+        }
+
         Store store = new Store();
         store.setStoreName(dto.getStoreName());
         store.setAddress(dto.getAddress());

@@ -329,6 +329,17 @@ function FeeRulesPage() {
   const closeModal = () => setModalOpen(false);
   const onSaved    = () => { closeModal(); load(); };
 
+  const handleDeactivate = async (r) => {
+    if (!window.confirm(`Deactivate fee rule #${r.feeRuleId} (${r.cardType} / ${r.transactionType})?`)) return;
+    try {
+      await feeRulesApi.deactivate(r.feeRuleId);
+      toast.success('Fee rule deactivated');
+      load();
+    } catch {
+      // interceptor handles error toast
+    }
+  };
+
   return (
     <div className="container-fluid p-4">
       <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
@@ -405,7 +416,7 @@ function FeeRulesPage() {
                             {r.status}
                           </span>
                         </td>
-                        <td>
+                        <td className="d-flex gap-2">
                           <button
                             className="btn btn-link btn-sm p-0 text-muted"
                             title="Edit rule"
@@ -413,6 +424,15 @@ function FeeRulesPage() {
                           >
                             <i className="bi bi-pencil"></i>
                           </button>
+                          {r.status === 'ACTIVE' && (
+                            <button
+                              className="btn btn-link btn-sm p-0 text-danger"
+                              title="Deactivate rule"
+                              onClick={() => handleDeactivate(r)}
+                            >
+                              <i className="bi bi-slash-circle"></i>
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}

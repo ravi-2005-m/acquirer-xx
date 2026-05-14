@@ -75,10 +75,23 @@ public class TerminalService {
         terminal.setCapability(dto.getCapability());
         terminal.setStoreId(storeId);
 
-        // Extract merchantId from the unwrapped store payload
+        // Extract merchantId from the unwrapped store payload and verify merchant is ACTIVE
         Object merchantIdObj = storeResponse.get("merchantId");
         if (merchantIdObj != null) {
-            terminal.setMerchantId(((Number) merchantIdObj).longValue());
+            Long mId = ((Number) merchantIdObj).longValue();
+            terminal.setMerchantId(mId);
+            try {
+                Map<String, Object> merchantResp = unwrapApiResponse(merchantServiceClient.getMerchantById(mId));
+                Object merchantStatus = merchantResp != null ? merchantResp.get("status") : null;
+                if (merchantStatus != null && !"ACTIVE".equals(merchantStatus.toString())) {
+                    throw new IllegalStateException(
+                        "Cannot create terminal: merchant is " + merchantStatus);
+                }
+            } catch (IllegalStateException e) {
+                throw e;
+            } catch (Exception e) {
+                log.warn("Could not verify merchant status for merchantId={}: {}", mId, e.getMessage());
+            }
         }
 
         terminal.setStatus(Status.ACTIVE);

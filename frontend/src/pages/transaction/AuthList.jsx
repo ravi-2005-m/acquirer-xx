@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import { transactionApi } from '../../api/transactionApi';
 import { merchantApi } from '../../api/merchantApi';
 import { storeApi } from '../../api/storeApi';
@@ -48,6 +49,8 @@ const fetchTerminalsOptions = (storeId) => ({ search }) =>
 
 function AuthList() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const canCreateTransaction = user?.role === 'ADMIN' || user?.role === 'MERCHANT_OPS';
 
   const [items, setItems]               = useState([]);
   const [totalElements, setTotalElements] = useState(0);
@@ -158,9 +161,11 @@ function AuthList() {
           </h3>
           <p className="text-muted small mb-0">Authorization messages — every card swipe processed</p>
         </div>
-        <Link to="/transactions/new" className="btn btn-primary btn-sm">
-          <i className="bi bi-plus-lg me-1"></i>New Transaction
-        </Link>
+        {canCreateTransaction && (
+          <Link to="/transactions/new" className="btn btn-primary btn-sm">
+            <i className="bi bi-plus-lg me-1"></i>New Transaction
+          </Link>
+        )}
       </div>
 
       {/* Filters */}
