@@ -347,3 +347,40 @@ code {
 
 [data-ax-theme="dark"] .ax-search-item             { color: var(--ax-text); }
 [data-ax-theme="dark"] .ax-search-panel input      { background-color: var(--ax-input-bg); color: var(--ax-input-text); border-color: var(--ax-input-border); }
+
+/* ── EntitySelect Dropdown ─────────────────────────────────── */
+.ax-entity-select-item {
+  color: var(--ax-text);
+  background-color: transparent;
+  transition: background-color 0.1s ease;
+}
+.ax-entity-select-item:hover {
+  background-color: var(--ax-sidebar-hover);
+  color: var(--ax-text);
+}
+.ax-entity-select-item--selected {
+  background-color: #3b5bdb;
+  color: #ffffff !important;
+}
+.ax-entity-select-item--selected:hover {
+  background-color: #3451c7;
+}
+
+[data-ax-theme="dark"] .ax-entity-select-dropdown {
+  background-color: var(--ax-card-bg);
+  border-color: var(--ax-card-border) !important;
+}
+[data-ax-theme="dark"] .ax-entity-select-item {
+  color: var(--ax-text);
+}
+[data-ax-theme="dark"] .ax-entity-select-item:hover {
+  background-color: var(--ax-sidebar-hover);
+  color: var(--ax-text);
+}
+[data-ax-theme="dark"] .ax-entity-select-item--selected {
+  background-color: #7367f0;
+  color: #ffffff !important;
+}
+[data-ax-theme="dark"] .ax-entity-select-item--selected:hover {
+  background-color: #6254e8;
+}

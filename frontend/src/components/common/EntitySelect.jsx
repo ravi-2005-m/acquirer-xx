@@ -116,7 +116,7 @@ function EntitySelect({
 
       {open && (
         <div
-          className="card shadow border"
+          className="ax-entity-select-dropdown card shadow border"
           style={{
             position: 'absolute',
             top: 'calc(100% + 2px)',
@@ -154,11 +154,9 @@ function EntitySelect({
               return (
                 <div
                   key={id}
-                  className={`px-3 py-2 small ${isSelected ? 'bg-primary text-white' : ''}`}
+                  className={`ax-entity-select-item px-3 py-2 small ${isSelected ? 'ax-entity-select-item--selected' : ''}`}
                   style={{ cursor: 'pointer' }}
                   onClick={() => handleSelect(option)}
-                  onMouseEnter={e => { if (!isSelected) e.currentTarget.style.backgroundColor = '#f8f9fa'; }}
-                  onMouseLeave={e => { if (!isSelected) e.currentTarget.style.backgroundColor = ''; }}
                 >
                   {getOptionLabel(option)}
                 </div>
