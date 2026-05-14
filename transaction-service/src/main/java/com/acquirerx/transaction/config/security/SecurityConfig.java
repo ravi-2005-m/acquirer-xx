@@ -32,9 +32,9 @@ public class SecurityConfig {
                 // Fee rules — admin only
                 .requestMatchers("/fee-rules", "/fee-rules/**")
                     .hasRole("ADMIN")
-                // Batch open/close — POS_OPS
+                // Batch open/close — ADMIN only
                 .requestMatchers(HttpMethod.POST, "/transactions/batch/*/open", "/transactions/batch/*/close")
-                    .hasAnyRole("ADMIN", "POS_OPS")
+                    .hasRole("ADMIN")
                 // Authorize / void / refund — MERCHANT_OPS
                 .requestMatchers(HttpMethod.POST, "/transactions/authorize", "/transactions/void", "/transactions/refund")
                     .hasAnyRole("ADMIN", "MERCHANT_OPS")

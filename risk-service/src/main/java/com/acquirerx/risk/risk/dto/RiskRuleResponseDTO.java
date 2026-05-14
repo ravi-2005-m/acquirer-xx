@@ -12,9 +12,9 @@ public class RiskRuleResponseDTO {
     private String name;
     private String conditionType;
     private BigDecimal threshold;
-    private String severity;
     private String action;
     private Boolean active;
     private Integer priority;
+    private String description;
     private LocalDateTime createdAt;
 }

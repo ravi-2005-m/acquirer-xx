@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { transactionApi } from '../../api/transactionApi';
+import { useAuth } from '../../context/AuthContext';
 import StatusBadge from '../StatusBadge';
 import ConfirmModal from '../ConfirmModal';
 import LoadingSpinner from '../LoadingSpinner';
@@ -7,6 +8,9 @@ import { formatDateTime } from '../../utils/formatters';
 import { toast } from '../../utils/toast';
 
 function BatchControlPanel({ terminalId, tid }) {
+  const { user } = useAuth();
+  const canManageBatch = user?.role === 'ADMIN';
+
   const [batches, setBatches]         = useState([]);
   const [loading, setLoading]         = useState(true);
   const [acting, setActing]           = useState(false);
@@ -92,31 +96,35 @@ function BatchControlPanel({ terminalId, tid }) {
                   <div className="text-muted small fw-semibold text-uppercase mb-1">Opened</div>
                   <div className="small">{formatDateTime(openBatch.openTime)}</div>
                 </div>
-                <div className="ms-auto">
-                  <button
-                    className="btn btn-outline-danger btn-sm"
-                    onClick={() => setShowClose(true)}
-                    disabled={acting}
-                  >
-                    {acting
-                      ? <span className="spinner-border spinner-border-sm" role="status"></span>
-                      : <><i className="bi bi-stop-circle me-1"></i>Close Batch</>}
-                  </button>
-                </div>
+                {canManageBatch && (
+                  <div className="ms-auto">
+                    <button
+                      className="btn btn-outline-danger btn-sm"
+                      onClick={() => setShowClose(true)}
+                      disabled={acting}
+                    >
+                      {acting
+                        ? <span className="spinner-border spinner-border-sm" role="status"></span>
+                        : <><i className="bi bi-stop-circle me-1"></i>Close Batch</>}
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           ) : (
             <div className="d-flex align-items-center gap-3">
               <span className="text-muted small">No open batch on this terminal.</span>
-              <button
-                className="btn btn-success btn-sm"
-                onClick={handleOpen}
-                disabled={acting}
-              >
-                {acting
-                  ? <span className="spinner-border spinner-border-sm" role="status"></span>
-                  : <><i className="bi bi-play-circle me-1"></i>Open Batch</>}
-              </button>
+              {canManageBatch && (
+                <button
+                  className="btn btn-success btn-sm"
+                  onClick={handleOpen}
+                  disabled={acting}
+                >
+                  {acting
+                    ? <span className="spinner-border spinner-border-sm" role="status"></span>
+                    : <><i className="bi bi-play-circle me-1"></i>Open Batch</>}
+                </button>
+              )}
             </div>
           )}
 

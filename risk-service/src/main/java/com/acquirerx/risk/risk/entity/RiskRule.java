@@ -23,18 +23,18 @@ public class RiskRule {
 
     private String name;
 
-    private String expression;
+    private String conditionType;
 
     @Column(precision = 15, scale = 4)
     private BigDecimal maxAmount;
-
-    private String severity;
 
     private String action;
 
     private Boolean active;
 
     private Integer priority;
+
+    private String description;
 
     private LocalDateTime createdAt;
 

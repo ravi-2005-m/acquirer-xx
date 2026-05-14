@@ -22,6 +22,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 @Slf4j
@@ -335,17 +336,20 @@ public class FeeService {
         log.info("Calculating fees: amount={}, mcc={}, region={}, network={}", amount, mcc, region, network);
 
         List<FeeRule> activeRules = feeRuleRepo.findByStatusOrderByPriorityAsc("ACTIVE");
-        List<FeeRule> applicableRules = activeRules.stream()
+        Optional<FeeRule> bestRule = activeRules.stream()
                 .filter(rule -> ruleMatcher.matches(rule, mcc, region, amount, network))
-                .toList();
+                .findFirst();
 
-        if (applicableRules.isEmpty()) {
+        if (bestRule.isEmpty()) {
             return FeeBreakdownDTO.empty(amount.setScale(4, RoundingMode.HALF_UP));
         }
 
-        BigDecimal schemeFee = sumPercentageForField(amount, applicableRules, "SCHEME");
-        BigDecimal interchangeFee = sumPercentageForField(amount, applicableRules, "INTERCHANGE");
-        BigDecimal acquirerMarkup = sumPercentageForField(amount, applicableRules, "MARKUP");
+        FeeRule rule = bestRule.get();
+        log.info("Applying fee rule: id={}, priority={}", rule.getFeeRuleId(), rule.getPriority());
+
+        BigDecimal schemeFee = applyPercentage(amount, rule.getSchemePercentage());
+        BigDecimal interchangeFee = applyPercentage(amount, rule.getInterchangePercentage());
+        BigDecimal acquirerMarkup = applyPercentage(amount, rule.getAcquirerMarkupPercentage());
 
         BigDecimal totalFee = schemeFee
                 .add(interchangeFee)
@@ -375,19 +379,9 @@ public class FeeService {
         return calculateFees(amount, null, null, null).getTotalFee();
     }
 
-    private BigDecimal sumPercentageForField(BigDecimal amount, List<FeeRule> rules, String field) {
-        return rules.stream()
-                .map(rule -> {
-                    BigDecimal pct = switch (field) {
-                        case "SCHEME" -> rule.getSchemePercentage();
-                        case "INTERCHANGE" -> rule.getInterchangePercentage();
-                        default -> rule.getAcquirerMarkupPercentage();
-                    };
-                    return pct != null ? pct : BigDecimal.ZERO;
-                })
-                .reduce(BigDecimal.ZERO, BigDecimal::add)
-                .multiply(amount)
-                .divide(new BigDecimal("100"), 4, RoundingMode.HALF_UP);
+    private BigDecimal applyPercentage(BigDecimal amount, BigDecimal percentage) {
+        if (percentage == null) return BigDecimal.ZERO;
+        return percentage.multiply(amount).divide(new BigDecimal("100"), 4, RoundingMode.HALF_UP);
     }
 
     private BigDecimal defaultZero(BigDecimal value) {

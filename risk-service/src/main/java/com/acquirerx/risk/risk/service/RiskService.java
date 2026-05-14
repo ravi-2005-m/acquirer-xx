@@ -34,7 +34,7 @@ import java.util.Set;
 public class RiskService {
 
     private static final Set<String> RULE_SORT_FIELDS = Set.of(
-            "riskRuleId", "name", "maxAmount", "severity"
+            "riskRuleId", "name", "maxAmount", "priority"
     );
     private static final Set<String> EVENT_SORT_FIELDS = Set.of(
             "riskEventId", "txnId", "score", "result", "eventDate"
@@ -114,7 +114,7 @@ public class RiskService {
 
     // ── RULE EVALUATOR ────────────────────────
     private boolean evaluateRule(RiskRule rule, Double amount, String panMasked) {
-        String conditionType = rule.getExpression();
+        String conditionType = rule.getConditionType();
         BigDecimal threshold  = rule.getMaxAmount();
 
         if (conditionType == null) return false;
@@ -158,10 +158,11 @@ public class RiskService {
     public RiskRuleResponseDTO createRule(RiskRuleRequestDTO dto) {
         RiskRule rule = new RiskRule();
         rule.setName(dto.getName());
-        rule.setExpression(dto.getConditionType());
+        rule.setConditionType(dto.getConditionType());
         rule.setMaxAmount(dto.getThreshold());
         rule.setAction(dto.getAction());
         rule.setPriority(dto.getPriority());
+        rule.setDescription(dto.getDescription());
         rule.setActive(true);
 
         RiskRule saved = riskRuleRepository.save(rule);
@@ -303,7 +304,7 @@ public class RiskService {
 
     // ── HELPERS ───────────────────────────────
     private int calculateScore(RiskRule rule, double amount) {
-        String conditionType = rule.getExpression();
+        String conditionType = rule.getConditionType();
         BigDecimal threshold  = rule.getMaxAmount();
         if (conditionType == null || threshold == null || threshold.doubleValue() == 0) return 50;
         double t = threshold.doubleValue();
@@ -315,7 +316,7 @@ public class RiskService {
     }
 
     private String buildReason(RiskRule rule, double amount) {
-        String conditionType = rule.getExpression();
+        String conditionType = rule.getConditionType();
         BigDecimal threshold  = rule.getMaxAmount();
         if (conditionType == null) return "Rule triggered: " + rule.getName();
         return switch (conditionType.toUpperCase()) {
@@ -345,12 +346,12 @@ public class RiskService {
         RiskRuleResponseDTO dto = new RiskRuleResponseDTO();
         dto.setRuleId(r.getRiskRuleId());
         dto.setName(r.getName());
-        dto.setConditionType(r.getExpression());
+        dto.setConditionType(r.getConditionType());
         dto.setThreshold(r.getMaxAmount());
-        dto.setSeverity(r.getSeverity());
         dto.setAction(r.getAction());
         dto.setActive(r.getActive());
         dto.setPriority(r.getPriority());
+        dto.setDescription(r.getDescription());
         dto.setCreatedAt(r.getCreatedAt());
         return dto;
     }

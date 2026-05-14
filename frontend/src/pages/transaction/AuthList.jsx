@@ -168,7 +168,7 @@ function AuthList() {
         <div className="card-body">
           <div className="row g-2 mb-2">
             {/* Chain: Merchant → Store → Terminal */}
-            <div className="col-md-3">
+            <div className="col-md-4">
               <label className="form-label small">Merchant</label>
               <EntitySelect
                 value={merchantFilter}
@@ -179,7 +179,7 @@ function AuthList() {
                 placeholder="All merchants"
               />
             </div>
-            <div className="col-md-3">
+            <div className="col-md-4">
               <label className="form-label small">Store</label>
               <EntitySelect
                 value={storeFilter}
@@ -191,7 +191,7 @@ function AuthList() {
                 disabled={!merchantFilter}
               />
             </div>
-            <div className="col-md-3">
+            <div className="col-md-4">
               <label className="form-label small">Terminal</label>
               <EntitySelect
                 value={terminalFilter}
@@ -203,15 +203,15 @@ function AuthList() {
                 disabled={!storeFilter}
               />
             </div>
-            <div className="col-md-3">
+          </div>
+          <div className="row g-2 align-items-end">
+            <div className="col-md-5">
               <DateRangePicker
                 fromDate={fromDate}
                 toDate={toDate}
                 onChange={({ fromDate: f, toDate: t }) => { setFromDate(f); setToDate(t); }}
               />
             </div>
-          </div>
-          <div className="row g-2 align-items-end">
             <div className="col-md-3">
               <label className="form-label small">Search (Auth Code / PAN)</label>
               <div className="input-group input-group-sm">
@@ -252,14 +252,14 @@ function AuthList() {
                 <option value="REVERSAL">Reversal</option>
               </select>
             </div>
-            <div className="col-md-5 d-flex justify-content-end align-items-end">
-              {hasActiveFilters && (
-                <button onClick={clearFilters} className="btn btn-sm btn-outline-secondary">
-                  <i className="bi bi-x-circle me-1"></i>Clear filters
-                </button>
-              )}
-            </div>
           </div>
+          {hasActiveFilters && (
+            <div className="d-flex justify-content-end mt-2">
+              <button onClick={clearFilters} className="btn btn-sm btn-outline-secondary">
+                <i className="bi bi-x-circle me-1"></i>Clear filters
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
