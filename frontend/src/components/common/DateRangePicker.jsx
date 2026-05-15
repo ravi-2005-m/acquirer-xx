@@ -53,13 +53,15 @@ function DateRangePicker({ fromDate, toDate, onChange, label = 'Date Range' }) {
         <input
           type="date"
           className="form-control form-control-sm"
+          style={{ minWidth: 0 }}
           value={toInputValue(fromDate)}
           onChange={e => onChange({ fromDate: e.target.value, toDate })}
         />
-        <span className="text-muted small px-1">—</span>
+        <span className="text-muted small px-1 flex-shrink-0">—</span>
         <input
           type="date"
           className="form-control form-control-sm"
+          style={{ minWidth: 0 }}
           value={toInputValue(toDate)}
           onChange={e => onChange({ fromDate, toDate: e.target.value })}
         />

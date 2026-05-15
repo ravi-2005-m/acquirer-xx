@@ -1,13 +1,11 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useTheme } from '../context/ThemeContext';
 import NotificationBell from './NotificationBell';
 import GlobalSearchBar from './search/GlobalSearchBar';
 
 function Navbar({ onToggleSidebar }) {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const { theme, toggleTheme } = useTheme();
 
   const handleLogout = () => {
     logout();
@@ -37,16 +35,8 @@ function Navbar({ onToggleSidebar }) {
         <GlobalSearchBar />
       </div>
 
-      {/* Right — theme toggle, bell, user, logout */}
+      {/* Right — bell, user, logout */}
       <div className="d-flex align-items-center gap-2">
-        <button
-          className="ax-theme-toggle"
-          onClick={toggleTheme}
-          title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-        >
-          <i className={`bi ${theme === 'dark' ? 'bi-sun-fill' : 'bi-moon-fill'}`}></i>
-        </button>
-
         <NotificationBell />
 
         {user && (

@@ -40,7 +40,8 @@ function DisputeFilters({ filters, onChange }) {
   return (
     <div className="card mb-3">
       <div className="card-body py-2">
-        <div className="row g-2 align-items-end">
+        {/* Row 1: dropdowns + checkbox */}
+        <div className="row g-2 align-items-center mb-2">
           <div className="col-6 col-md-2">
             <select
               className="form-select form-select-sm"
@@ -73,7 +74,7 @@ function DisputeFilters({ filters, onChange }) {
             />
           </div>
 
-          <div className="col-6 col-md-2">
+          <div className="col-6 col-md-3">
             <EntitySelect
               value={merchantObj}
               onChange={handleMerchantChange}
@@ -85,16 +86,8 @@ function DisputeFilters({ filters, onChange }) {
             />
           </div>
 
-          <div className="col-12 col-md-3">
-            <DateRangePicker
-              fromDate={filters.fromDate}
-              toDate={filters.toDate}
-              onChange={({ fromDate, toDate }) => onChange({ ...filters, fromDate, toDate })}
-            />
-          </div>
-
           <div className="col-auto">
-            <div className="form-check small">
+            <div className="form-check small mb-0">
               <input
                 type="checkbox"
                 className="form-check-input"
@@ -105,11 +98,22 @@ function DisputeFilters({ filters, onChange }) {
               <label className="form-check-label" htmlFor="dl-expired">Deadline expired</label>
             </div>
           </div>
+        </div>
+
+        {/* Row 2: date range + clear */}
+        <div className="row g-2 align-items-end">
+          <div className="col-12 col-md-6">
+            <DateRangePicker
+              fromDate={filters.fromDate}
+              toDate={filters.toDate}
+              onChange={({ fromDate, toDate }) => onChange({ ...filters, fromDate, toDate })}
+            />
+          </div>
 
           {hasFilters && (
             <div className="col-auto">
               <button className="btn btn-sm btn-outline-secondary" onClick={clearAll}>
-                <i className="bi bi-x-circle me-1"></i>Clear
+                <i className="bi bi-x-circle me-1"></i>Clear filters
               </button>
             </div>
           )}
