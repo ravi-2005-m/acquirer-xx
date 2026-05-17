@@ -1,15 +1,8 @@
 import api from './axiosConfig';
 
-// ─── TODO: Stats endpoints currently fail (backend bugs) ────────
-// Stats/summary calls have suppressToast: true to hide the user-facing
-// red error toast. Pages handle the failure gracefully via try/catch
-// and show "—" placeholders. Remove this suppression once the backend
-// 500/404 errors are fixed.
-// ────────────────────────────────────────────────────────────────
-
 const unwrap = (res) => res.data?.data ?? res.data;
 
-// All stats calls are best-effort background data — failures show a clean
+// Stats are best-effort background data — failures show a clean "—"
 // placeholder in the dashboard card rather than toasting the user.
 const get = (url) => api.get(url, { suppressToast: true }).then(unwrap);
 

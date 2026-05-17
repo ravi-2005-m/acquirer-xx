@@ -5,7 +5,7 @@ const actions = [
   { label: '+ New Merchant',      to: '/merchants',       icon: 'bi-plus-circle',    roles: ['ADMIN', 'MERCHANT_OPS'] },
   { label: 'View Transactions',   to: '/transactions',    icon: 'bi-receipt',        roles: ['ADMIN', 'MERCHANT_OPS', 'RISK'] },
   { label: 'Open Disputes',       to: '/disputes',        icon: 'bi-chat-left-text', roles: ['ADMIN', 'DISPUTES'] },
-  { label: 'Pending Settlements', to: '/settlements',     icon: 'bi-bank',           roles: ['ADMIN', 'RECON'] },
+  { label: 'Pending Settlements', to: '/settlement',      icon: 'bi-bank',           roles: ['ADMIN', 'RECON'] },
   { label: 'Recon Alerts',        to: '/reconciliation',  icon: 'bi-clipboard-check',roles: ['ADMIN', 'RECON'] },
   { label: 'Risk Reviews',        to: '/risk',            icon: 'bi-shield-check',   roles: ['ADMIN', 'RISK'] },
 ];

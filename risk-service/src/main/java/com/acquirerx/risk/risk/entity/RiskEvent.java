@@ -12,6 +12,7 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -38,6 +39,8 @@ public class RiskEvent {
     private String result;
 
     private String pan;
+
+    private BigDecimal amount;
 
     private LocalDateTime eventDate;
 

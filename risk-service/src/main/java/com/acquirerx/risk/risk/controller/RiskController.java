@@ -97,7 +97,7 @@ public class RiskController {
             HttpServletRequest request) {
         Long userId = parseUserId(request.getHeader("X-User-Id"));
         RiskCheckResultDTO result = service.checkRisk(amount, panMasked, tid);
-        service.saveManualCheckEvent(panMasked, result, userId);
+        service.saveManualCheckEvent(panMasked, result, userId, amount);
         return new ApiResponse<>("Risk check complete", result);
     }
 

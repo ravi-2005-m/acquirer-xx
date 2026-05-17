@@ -26,7 +26,7 @@ function RiskPage() {
   const [summaryLoading, setSummaryLoading] = useState(true);
 
   // Events tab
-  const [eventFilters, setEventFilters] = useState({ pan: '', merchantId: '', decision: '', fromDate: '', toDate: '' });
+  const [eventFilters, setEventFilters] = useState({ pan: '', result: '', fromDate: '', toDate: '' });
   const [eventPage, setEventPage]       = useState(0);
   const [events, setEvents]             = useState([]);
   const [eventTotalPages, setEventTotalPages]       = useState(0);
@@ -71,11 +71,10 @@ function RiskPage() {
       let res;
       if (hasFilters) {
         const search = {};
-        if (eventFilters.pan)        search.pan        = eventFilters.pan;
-        if (eventFilters.merchantId) search.merchantId = eventFilters.merchantId;
-        if (eventFilters.decision)   search.decision   = eventFilters.decision;
-        if (eventFilters.fromDate)   search.fromDate   = toBackendDateTime(eventFilters.fromDate, false);
-        if (eventFilters.toDate)     search.toDate     = toBackendDateTime(eventFilters.toDate,   true);
+        if (eventFilters.pan)      search.pan      = eventFilters.pan;
+        if (eventFilters.result)   search.result   = eventFilters.result;
+        if (eventFilters.fromDate) search.fromDate = toBackendDateTime(eventFilters.fromDate, false);
+        if (eventFilters.toDate)   search.toDate   = toBackendDateTime(eventFilters.toDate,   true);
         res = await riskApi.searchEvents(search, { page: eventPage, size: EVENT_PAGE_SIZE });
       } else {
         res = await riskApi.getEvents({ page: eventPage, size: EVENT_PAGE_SIZE });

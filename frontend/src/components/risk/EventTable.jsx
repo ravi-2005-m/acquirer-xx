@@ -2,6 +2,13 @@ import RiskResultBadge from './RiskResultBadge';
 import RiskBadge from '../RiskBadge';
 import { formatDateTime, formatCurrency, maskPan } from '../../utils/formatters';
 
+function scoreToLevel(score) {
+  if (score == null) return null;
+  if (score >= 80) return 'HIGH';
+  if (score >= 50) return 'MEDIUM';
+  return 'LOW';
+}
+
 function EventTable({ events, loading }) {
   if (loading) {
     return (
@@ -27,44 +34,42 @@ function EventTable({ events, loading }) {
         <thead className="table-light">
           <tr>
             <th>Event ID</th>
+            <th>Txn ID</th>
             <th>PAN</th>
-            <th>Merchant</th>
             <th>Amount</th>
-            <th>Txn Type</th>
-            <th>Decision</th>
+            <th>Result</th>
             <th>Risk Level</th>
             <th>Score</th>
-            <th>Rules Triggered</th>
+            <th>Rule Triggered</th>
             <th>Time</th>
           </tr>
         </thead>
         <tbody>
           {events.map(e => (
-            <tr key={e.eventId ?? e.id}>
-              <td className="small font-monospace text-muted">#{e.eventId ?? e.id}</td>
+            <tr key={e.riskEventId}>
+              <td className="small font-monospace text-muted">#{e.riskEventId}</td>
+              <td className="small font-monospace">{e.txnId ?? '—'}</td>
               <td className="small font-monospace">{maskPan(e.pan) || '—'}</td>
-              <td className="small">{e.merchantId || '—'}</td>
               <td className="small font-monospace">
-                {e.amount != null ? formatCurrency(e.amount, e.currency) : '—'}
+                {e.txnAmount != null ? formatCurrency(e.txnAmount) : '—'}
               </td>
-              <td className="small">{e.txnType || '—'}</td>
-              <td><RiskResultBadge result={e.decision ?? e.result} /></td>
-              <td><RiskBadge level={e.riskLevel} /></td>
+              <td><RiskResultBadge result={e.result} /></td>
+              <td><RiskBadge level={scoreToLevel(e.score)} /></td>
               <td className="small text-center">
-                {e.riskScore != null ? (
+                {e.score != null ? (
                   <span className={`fw-semibold ${
-                    e.riskScore >= 80 ? 'text-danger' :
-                    e.riskScore >= 50 ? 'text-warning' : 'text-success'
-                  }`}>{e.riskScore}</span>
+                    e.score >= 80 ? 'text-danger' :
+                    e.score >= 50 ? 'text-warning' : 'text-success'
+                  }`}>{e.score}</span>
                 ) : '—'}
               </td>
               <td className="small text-muted" style={{ maxWidth: '200px' }}>
-                {e.triggeredRules?.length
-                  ? <div className="text-truncate" title={e.triggeredRules.join(', ')}>{e.triggeredRules.join(', ')}</div>
+                {e.ruleName
+                  ? <div className="text-truncate" title={e.ruleName}>{e.ruleName}</div>
                   : '—'
                 }
               </td>
-              <td className="small text-muted text-nowrap">{formatDateTime(e.createdAt ?? e.eventTime)}</td>
+              <td className="small text-muted text-nowrap">{formatDateTime(e.eventDate)}</td>
             </tr>
           ))}
         </tbody>

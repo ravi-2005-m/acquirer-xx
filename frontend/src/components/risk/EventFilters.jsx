@@ -1,6 +1,6 @@
 import DateRangePicker from '../common/DateRangePicker';
 
-const DECISIONS = ['', 'ALLOW', 'REVIEW', 'BLOCK'];
+const RESULTS = ['', 'ALLOW', 'REVIEW', 'BLOCK'];
 
 function EventFilters({ filters, onChange }) {
   const set = (k, v) => onChange({ ...filters, [k]: v });
@@ -19,23 +19,14 @@ function EventFilters({ filters, onChange }) {
             />
           </div>
           <div className="col-12 col-sm-6 col-md-2">
-            <label className="form-label small mb-1">Merchant ID</label>
-            <input
-              className="form-control form-control-sm"
-              placeholder="Merchant ID"
-              value={filters.merchantId || ''}
-              onChange={e => set('merchantId', e.target.value)}
-            />
-          </div>
-          <div className="col-12 col-sm-6 col-md-2">
-            <label className="form-label small mb-1">Decision</label>
+            <label className="form-label small mb-1">Result</label>
             <select
               className="form-select form-select-sm"
-              value={filters.decision || ''}
-              onChange={e => set('decision', e.target.value)}
+              value={filters.result || ''}
+              onChange={e => set('result', e.target.value)}
             >
-              {DECISIONS.map(d => (
-                <option key={d} value={d}>{d || 'All Decisions'}</option>
+              {RESULTS.map(d => (
+                <option key={d} value={d}>{d || 'All Results'}</option>
               ))}
             </select>
           </div>
@@ -50,7 +41,7 @@ function EventFilters({ filters, onChange }) {
           <div className="col-12 col-md-1">
             <button
               className="btn btn-outline-secondary btn-sm w-100"
-              onClick={() => onChange({ pan: '', merchantId: '', decision: '', fromDate: '', toDate: '' })}
+              onClick={() => onChange({ pan: '', result: '', fromDate: '', toDate: '' })}
             >
               Clear
             </button>

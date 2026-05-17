@@ -105,6 +105,7 @@ public class RiskService {
                 event.setRule(rule);
                 event.setScore(calculateScore(rule, amount));
                 event.setResult(rule.getAction());
+                event.setAmount(amount != null ? new BigDecimal(amount.toString()) : null);
                 riskEventRepository.save(event);
                 log.info("Risk event saved: txnId={}, rule={}, result={}",
                         txnId, rule.getName(), rule.getAction());
@@ -233,11 +234,12 @@ public class RiskService {
         return new PagedResponseDTO<>(eventPage.map(this::toEventResponse));
     }
 
-    public void saveManualCheckEvent(String panMasked, RiskCheckResultDTO result, Long userId) {
+    public void saveManualCheckEvent(String panMasked, RiskCheckResultDTO result, Long userId, Double amount) {
         RiskEvent event = new RiskEvent();
         event.setPan(panMasked != null ? MaskingUtil.maskPan(panMasked) : null);
         event.setScore(result.getScore());
         event.setResult(result.getResult());
+        event.setAmount(amount != null ? new BigDecimal(amount.toString()) : null);
         riskEventRepository.save(event);
 
         if ("BLOCK".equals(result.getResult()) && userId != null) {
@@ -361,6 +363,7 @@ public class RiskService {
         dto.setRiskEventId(e.getRiskEventId());
         dto.setTxnId(e.getTxnId());
         dto.setPan(e.getPan());
+        dto.setTxnAmount(e.getAmount());
         dto.setScore(e.getScore());
         dto.setResult(e.getResult());
         dto.setEventDate(e.getEventDate());
