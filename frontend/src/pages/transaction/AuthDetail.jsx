@@ -6,7 +6,7 @@ import ErrorAlert from '../../components/ErrorAlert';
 import StatusBadge from '../../components/StatusBadge';
 import TxnTypeBadge from '../../components/TxnTypeBadge';
 import ConfirmModal from '../../components/ConfirmModal';
-import { formatDateTime, formatCurrency, maskPAN } from '../../utils/formatters';
+import { formatDateTime, formatCurrency, maskPan } from '../../utils/formatters';
 
 function AuthDetail() {
   const { id } = useParams();
@@ -232,7 +232,7 @@ function AuthDetail() {
                 <tbody>
                   <tr>
                     <td className="text-muted">PAN</td>
-                    <td><code className="small">{auth.panMasked ? maskPAN(auth.panMasked.replace(/\D/g,'')) : '—'}</code></td>
+                    <td><code className="small">{auth.panMasked ? maskPan(auth.panMasked) : '—'}</code></td>
                   </tr>
                   <tr>
                     <td className="text-muted">Risk Score</td>

@@ -19,16 +19,17 @@ import './index.css'
 import App from './App.jsx'
 import { AuthProvider } from './context/AuthContext'
 import { NotificationProvider } from './context/NotificationContext'
-import { ThemeProvider } from './context/ThemeContext'
+
+// Remove any dark-mode state left from previous sessions
+document.documentElement.removeAttribute('data-ax-theme');
+localStorage.removeItem('ax_theme');
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <ThemeProvider>
-      <AuthProvider>
-        <NotificationProvider>
-          <App />
-        </NotificationProvider>
-      </AuthProvider>
-    </ThemeProvider>
+    <AuthProvider>
+      <NotificationProvider>
+        <App />
+      </NotificationProvider>
+    </AuthProvider>
   </StrictMode>,
 )

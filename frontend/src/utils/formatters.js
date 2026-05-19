@@ -42,19 +42,19 @@ export function formatDateTime(isoString) {
   }
 }
 
+// Display a PAN safely. If already masked by the backend (contains * or X),
+// show as-is. For raw digits (13–19), apply first-6 / middle-masked / last-4
+// which matches the backend MaskingUtil format.
 export function maskPan(pan) {
   if (!pan) return '—';
-  const digits = pan.replace(/\D/g, '');
-  if (digits.length < 4) return pan;
-  return `**** **** **** ${digits.slice(-4)}`;
-}
-
-// 4111-XXXX-XXXX-1111 format (acquirer-style masking)
-export function maskPAN(pan) {
-  if (!pan) return '—';
-  const clean = pan.replace(/\D/g, '');
-  if (clean.length < 16) return pan;
-  return `${clean.slice(0, 4)}-XXXX-XXXX-${clean.slice(-4)}`;
+  const clean = pan.replace(/[\s-]/g, '');
+  if (clean.includes('*') || clean.includes('X')) return clean;
+  const digits = clean.replace(/\D/g, '');
+  if (digits.length < 13 || digits.length > 19) return clean || '—';
+  const first6 = digits.slice(0, 6);
+  const last4  = digits.slice(-4);
+  const stars  = '*'.repeat(digits.length - 10);
+  return `${first6}${stars}${last4}`;
 }
 
 // Indian Rupee with optional compact notation (₹2.45 L, ₹3.12 Cr)
@@ -67,12 +67,6 @@ export function formatINR(amount, options = {}) {
     if (amount >= 1_000)      return `₹${(amount / 1_000).toFixed(2)} K`;
   }
   return formatCurrency(amount, 'INR');
-}
-
-export function truncate(text, maxLength = 50) {
-  if (!text) return '';
-  if (text.length <= maxLength) return text;
-  return text.slice(0, maxLength) + '…';
 }
 
 // Convert a "YYYY-MM-DD" date string (from <input type="date">) to an ISO

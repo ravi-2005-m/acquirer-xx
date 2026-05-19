@@ -8,7 +8,7 @@ import { authorizeSchema } from '../../schemas/transactionSchemas';
 import EntitySelect from '../../components/common/EntitySelect';
 import FormInput from '../../components/form/FormInput';
 import FormSelect from '../../components/form/FormSelect';
-import { formatCurrency, formatDateTime } from '../../utils/formatters';
+import { formatCurrency, formatDateTime, maskPan } from '../../utils/formatters';
 
 const fetchTerminalOptions = ({ search }) =>
   terminalApi.search(
@@ -36,7 +36,8 @@ function TransactionSimulator() {
     setSubmitting(true);
     const idempotencyKey = `auth-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     try {
-      const res = await transactionApi.authorize(data, idempotencyKey);
+      const payload = { ...data, panMasked: maskPan(data.panMasked) };
+      const res = await transactionApi.authorize(payload, idempotencyKey);
       const auth = res.data?.data ?? res.data;
       setResult(auth);
 
@@ -244,13 +245,18 @@ function TransactionSimulator() {
                 />
 
                 <FormInput
-                  label="PAN (Masked)"
+                  label="PAN"
                   id="panMasked"
-                  placeholder="453201******0366"
+                  placeholder="4532010000000366"
                   required
-                  hint="6 digits (BIN) + 3–9 of * or X + 4 digits (last four). Example: 453201******0366"
+                  maxLength={19}
+                  hint="Enter the 13–19 digit card number — it will be masked automatically"
                   error={errors.panMasked?.message}
-                  {...register('panMasked')}
+                  {...register('panMasked', {
+                    onChange: e => {
+                      e.target.value = e.target.value.replace(/\D/g, '');
+                    }
+                  })}
                 />
 
                 <FormSelect

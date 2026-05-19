@@ -1,9 +1,16 @@
 import { useState } from 'react';
 import { riskApi } from '../../api/riskApi';
+import { maskPan } from '../../utils/formatters';
 
 const ENTRY_TYPES = ['PAN', 'TERMINAL', 'MERCHANT'];
 
 const INITIAL = { type: 'PAN', value: '', reason: '' };
+
+const CONFIG = {
+  PAN:      { placeholder: '4532010000000366', maxLength: 19, hint: 'Enter 13–19 digit card number — it will be masked automatically', digitsOnly: true },
+  TERMINAL: { placeholder: '10000001',         maxLength: 20, hint: 'Enter the Terminal ID',    digitsOnly: false },
+  MERCHANT: { placeholder: '12345',            maxLength: 20, hint: 'Enter the Merchant ID',    digitsOnly: false },
+};
 
 function AddBlacklistModal({ show, onClose, onAdded }) {
   const [form, setForm]     = useState(INITIAL);
@@ -12,14 +19,35 @@ function AddBlacklistModal({ show, onClose, onAdded }) {
 
   if (!show) return null;
 
+  const cfg = CONFIG[form.type] || CONFIG.PAN;
+
   const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
+
+  const handleTypeChange = (type) => {
+    setForm({ ...INITIAL, type });
+    setError(null);
+  };
+
+  const handleValueChange = (e) => {
+    let val = e.target.value;
+    if (cfg.digitsOnly) val = val.replace(/\D/g, '');
+    set('value', val);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (form.type === 'PAN' && (form.value.length < 13 || form.value.length > 19)) {
+      setError('PAN must be 13–19 digits');
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
-      await riskApi.addBlacklist(form);
+      const payload = {
+        ...form,
+        value: form.type === 'PAN' ? maskPan(form.value) : form.value,
+      };
+      await riskApi.addBlacklist(payload);
       setForm(INITIAL);
       onAdded();
     } catch (err) {
@@ -28,12 +56,6 @@ function AddBlacklistModal({ show, onClose, onAdded }) {
       setSaving(false);
     }
   };
-
-  const placeholder = {
-    PAN:      '453201******0366',
-    TERMINAL: '10000001',
-    MERCHANT: '12345',
-  }[form.type] || 'Value';
 
   return (
     <>
@@ -56,7 +78,7 @@ function AddBlacklistModal({ show, onClose, onAdded }) {
                   <select
                     className="form-select form-select-sm"
                     value={form.type}
-                    onChange={e => set('type', e.target.value)}
+                    onChange={e => handleTypeChange(e.target.value)}
                   >
                     {ENTRY_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
@@ -65,11 +87,14 @@ function AddBlacklistModal({ show, onClose, onAdded }) {
                   <label className="form-label small fw-semibold">Value <span className="text-danger">*</span></label>
                   <input
                     className="form-control form-control-sm font-monospace"
-                    placeholder={placeholder}
+                    placeholder={cfg.placeholder}
                     value={form.value}
-                    onChange={e => set('value', e.target.value)}
+                    maxLength={cfg.maxLength}
+                    onChange={handleValueChange}
                     required
+                    inputMode={cfg.digitsOnly ? 'numeric' : 'text'}
                   />
+                  <div className="form-text small text-muted">{cfg.hint}</div>
                 </div>
                 <div className="mb-0">
                   <label className="form-label small fw-semibold">Reason <span className="text-danger">*</span></label>

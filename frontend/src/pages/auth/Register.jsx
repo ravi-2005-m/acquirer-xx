@@ -86,7 +86,7 @@ function Register() {
                 <div className="row">
                   <div className="col-md-6 mb-3">
                     <label htmlFor="name" className="form-label">
-                      Full Name
+                      Full Name <span className="text-danger">*</span>
                     </label>
                     <input
                       type="text"
@@ -121,7 +121,7 @@ function Register() {
                 <div className="row">
                   <div className="col-md-6 mb-3">
                     <label htmlFor="username" className="form-label">
-                      Username
+                      Username <span className="text-danger">*</span>
                     </label>
                     <input
                       type="text"
@@ -138,7 +138,7 @@ function Register() {
 
                   <div className="col-md-6 mb-3">
                     <label htmlFor="email" className="form-label">
-                      Email
+                      Email <span className="text-danger">*</span>
                     </label>
                     <input
                       type="email"
@@ -157,7 +157,7 @@ function Register() {
                 <div className="row">
                   <div className="col-md-6 mb-3">
                     <label htmlFor="password" className="form-label">
-                      Password
+                      Password <span className="text-danger">*</span>
                     </label>
                     <input
                       type="password"
@@ -177,7 +177,7 @@ function Register() {
 
                   <div className="col-md-6 mb-3">
                     <label htmlFor="confirmPassword" className="form-label">
-                      Confirm Password
+                      Confirm Password <span className="text-danger">*</span>
                     </label>
                     <input
                       type="password"

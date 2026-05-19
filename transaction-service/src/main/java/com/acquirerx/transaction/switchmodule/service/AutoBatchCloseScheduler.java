@@ -1,17 +1,19 @@
 package com.acquirerx.transaction.switchmodule.service;
 
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
+
 import com.acquirerx.transaction.client.TerminalServiceClient;
 import com.acquirerx.transaction.switchmodule.entity.Batch;
 import com.acquirerx.transaction.switchmodule.enums.BatchStatus;
 import com.acquirerx.transaction.switchmodule.repository.BatchRepository;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
-
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
 
 @Slf4j
 @Component
