@@ -177,8 +177,6 @@ public class TerminalProvisioningService {
         response.setHealthId(health.getHealthId());
         response.setTerminalId(health.getTerminal().getTerminalId());
         response.setTid(health.getTerminal().getTid());
-        // Store and merchant names are not directly available; would need Feign client to lookup
-        // For now, leaving storeName and merchantName as null
         response.setLastSeen(health.getLastSeen());
         response.setBatteryPct(health.getBatteryPct());
         response.setSignalStrength(health.getSignalStrength());

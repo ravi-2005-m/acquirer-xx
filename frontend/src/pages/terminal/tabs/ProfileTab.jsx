@@ -392,6 +392,7 @@ function ProfileTab({ terminal, onRefresh }) {
                         disabled={creating}
                         min="0"
                         max="23"
+                        required
                       />
                       <div className="form-text small">24-hour format (e.g. 23 = 11 PM)</div>
                     </div>

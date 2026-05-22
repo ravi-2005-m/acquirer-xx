@@ -20,7 +20,7 @@ function signalColor(strength) {
   return 'danger';
 }
 
-function HealthTab({ terminalId }) {
+function HealthTab({ terminalId, onRefresh, onHealthLoaded }) {
   const [health, setHealth] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -39,8 +39,10 @@ function HealthTab({ terminalId }) {
     setLoading(true);
     setError(null);
     try {
-      const response = await terminalApi.getHealth(terminalId);
-      setHealth(response.data?.data ?? null);
+      const response = await terminalApi.getHealth(terminalId, { suppressToast: true });
+      const healthData = response.data?.data ?? null;
+      setHealth(healthData);
+      if (onHealthLoaded && healthData?.lastSeen) onHealthLoaded(healthData.lastSeen);
     } catch (err) {
       if (err.response?.status === 404) {
         setHealth(null);
@@ -76,6 +78,7 @@ function HealthTab({ terminalId }) {
       setShowForm(false);
       setFormData({ batteryPct: '', signalStrength: '', firmwareVersion: '', ipAddress: '' });
       fetchHealth();
+      if (onRefresh) onRefresh();
     } catch (err) {
       setSubmitError(err);
     } finally {

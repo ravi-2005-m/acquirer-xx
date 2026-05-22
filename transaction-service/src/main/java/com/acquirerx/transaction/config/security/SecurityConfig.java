@@ -40,9 +40,9 @@ public class SecurityConfig {
                     .hasAnyRole("ADMIN", "MERCHANT_OPS")
                 // Read transactions
                 .requestMatchers(HttpMethod.GET, "/transactions", "/transactions/**")
-                    .hasAnyRole("ADMIN", "MERCHANT_OPS", "RISK")
+                    .hasAnyRole("ADMIN", "MERCHANT_OPS", "RISK", "POS_OPS", "SETTLEMENT", "RECON", "DISPUTES")
                 .requestMatchers(HttpMethod.POST, "/transactions/search", "/transactions/stats")
-                    .hasAnyRole("ADMIN", "MERCHANT_OPS", "RISK")
+                    .hasAnyRole("ADMIN", "MERCHANT_OPS", "RISK", "POS_OPS", "SETTLEMENT", "RECON", "DISPUTES")
                 // /txns/* — Feign internal endpoints; require any authenticated user
                 .requestMatchers("/txns/**", "/merchants/*/fee-summary").authenticated()
                 .anyRequest().authenticated()

@@ -42,7 +42,7 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
         }
 
         String path = request.getURI().getPath();
-
+        // Line 44-48: check if path is open (login/register) — terminals is NOT open so continues
         List<String> openPaths = Arrays.asList(openPathsCsv.split(","));
         if (openPaths.stream().anyMatch(path::contains)) {
             log.debug("Skipping JWT validation for open path: {}", path);

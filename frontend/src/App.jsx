@@ -98,7 +98,7 @@ function App() {
           <Route path="/merchants/:id" element={<MerchantDetail />} />
           <Route path="/stores" element={<StoresList />} />
           <Route path="/stores/:id" element={<StoreDetail />} />
-          <Route path="/terminals" element={<TerminalList />} />
+          <Route path="/terminals" element={<TerminalList/>} />  
           <Route path="/terminals/:id" element={<TerminalDetail />} />
           <Route path="/transactions" element={<AuthList />} />
           <Route path="/transactions/new" element={<TransactionSimulator />} />

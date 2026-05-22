@@ -59,8 +59,8 @@ export const terminalApi = {
     api.post(`/terminals/provisioning/profiles/${profileId}/assign/${terminalId}`),
 
   // Health monitoring
-  getHealth: (terminalId) =>
-    api.get(`/terminals/provisioning/health/${terminalId}`),
+  getHealth: (terminalId, config = {}) =>
+    api.get(`/terminals/provisioning/health/${terminalId}`, config),
 
   recordHealthPing: (terminalId, params) =>
     api.post(`/terminals/provisioning/health/${terminalId}`, null, { params }),

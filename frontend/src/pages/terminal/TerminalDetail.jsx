@@ -34,6 +34,8 @@ function TerminalDetail() {
   const [error, setError]           = useState(null);
   const [activeTab, setActiveTab]   = useState('overview');
 
+  const [healthLastSeen, setHealthLastSeen] = useState(null);
+
   const [showEdit, setShowEdit]             = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting]             = useState(false);
@@ -53,7 +55,17 @@ function TerminalDetail() {
     }
   }, [id]);
 
-  useEffect(() => { fetchTerminal(); }, [fetchTerminal]);
+  const fetchHealthLastSeen = useCallback(async () => {
+    try {
+      const response = await terminalApi.getHealth(id, { suppressToast: true });
+      const healthData = response.data?.data ?? null;
+      if (healthData?.lastSeen) setHealthLastSeen(healthData.lastSeen);
+    } catch {
+      // silently ignore — badge will show "Never seen" if no health data
+    }
+  }, [id]);
+
+  useEffect(() => { fetchTerminal(); fetchHealthLastSeen(); }, [fetchTerminal, fetchHealthLastSeen]);
 
   const handleStatusChange = async (newStatus) => {
     setStatusChanging(true);
@@ -140,7 +152,7 @@ function TerminalDetail() {
           </div>
         </div>
         <div className="d-flex gap-2 ms-3 align-items-center flex-wrap">
-          <HeartbeatBadge lastSeenAt={terminal.lastSeenAt} lastSeen={terminal.lastSeen} />
+          <HeartbeatBadge lastSeenAt={terminal.lastSeenAt || healthLastSeen} lastSeen={terminal.lastSeen} />
           <StatusBadge status={terminal.status} />
           <button className="btn btn-outline-primary btn-sm" onClick={() => setShowEdit(true)}>
             <i className="bi bi-pencil me-1"></i>Edit
@@ -196,7 +208,7 @@ function TerminalDetail() {
       <div className="card border-top-0 rounded-top-0">
         <div className="card-body">
           {activeTab === 'overview' && <OverviewTab terminal={terminal} onRefresh={fetchTerminal} />}
-          {activeTab === 'health'   && <HealthTab terminalId={terminal.terminalId} />}
+          {activeTab === 'health'   && <HealthTab terminalId={terminal.terminalId} onRefresh={fetchTerminal} onHealthLoaded={(lastSeen) => setHealthLastSeen(lastSeen)} />}
           {activeTab === 'profile'  && <ProfileTab terminal={terminal} onRefresh={fetchTerminal} />}
         </div>
       </div>
